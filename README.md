@@ -4,6 +4,10 @@
 Kepler.gl 風の地理可視化と Superset 風の BI ダッシュボードを 1 画面に同居させた、
 データジャーナリズム志向のダークテーマ・エディトリアル UI です。
 
+🌅 **ライブデモ**: <https://satoru-oka.github.io/fishing-dashboard/>
+
+`main` ブランチへの push で GitHub Actions が自動ビルド・デプロイします（`.github/workflows/deploy.yml`）。
+
 ## 起動
 
 ```bash

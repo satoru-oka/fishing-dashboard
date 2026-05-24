@@ -1,7 +1,10 @@
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Serve /data/* from the repo-root `data/` folder during dev, and copy on build.
 function dataFolderPlugin(): Plugin {
@@ -30,7 +33,11 @@ function dataFolderPlugin(): Plugin {
   };
 }
 
+// Pick base path: GitHub Pages serves at /<repo>/. Local dev stays at /.
+const base = process.env.GITHUB_ACTIONS ? '/fishing-dashboard/' : '/';
+
 export default defineConfig({
+  base,
   plugins: [react(), dataFolderPlugin()],
   server: {
     port: 5173,

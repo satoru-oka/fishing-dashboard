@@ -12,7 +12,9 @@ function str(v: unknown): string {
   return String(v).trim();
 }
 
-export async function loadCatches(url = '/data/catches_enriched.csv'): Promise<Catch[]> {
+const DEFAULT_CSV_URL = `${import.meta.env.BASE_URL}data/catches_enriched.csv`;
+
+export async function loadCatches(url: string = DEFAULT_CSV_URL): Promise<Catch[]> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`CSV ロード失敗: ${res.status} ${res.statusText}`);
