@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+:root {
+  --bg-deep: #060d1c;
+  --bg: #0a1428;
+  --card: #0f1d33;
+  --card-2: #142544;
+  --border: #1e3457;
+  --foam: #e8e6d8;
+  --foam-dim: #c8c5b1;
+  --sky: #87a8b8;
+  --sky-dim: #5a7385;
+  --sun: #f4a261;
+  --coral: #e76f51;
+  --gold: #e9c46a;
+  --algae: #8db38b;
+  color-scheme: dark;
+}
+
+@theme {
+  --color-bg-deep: var(--bg-deep);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-border: var(--border);
+  --color-foam: var(--foam);
+  --color-foam-dim: var(--foam-dim);
+  --color-sky: var(--sky);
+  --color-sky-dim: var(--sky-dim);
+  --color-sun: var(--sun);
+  --color-coral: var(--coral);
+  --color-gold: var(--gold);
+  --color-algae: var(--algae);
+  --font-serif: "Fraunces", "Shippori Mincho B1", serif;
+  --font-mincho: "Shippori Mincho B1", "Fraunces", serif;
+  --font-sans: "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 15% -10%, rgba(244, 162, 97, 0.08), transparent 55%),
+    radial-gradient(ellipse at 90% 110%, rgba(231, 111, 81, 0.07), transparent 60%),
+    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 100%);
+  background-attachment: fixed;
+  color: var(--foam);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* fine grid texture, very subtle */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(135, 168, 184, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(135, 168, 184, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Reveal on mount */
+.reveal {
+  animation: reveal 0.55s ease-out backwards;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}
+
+/* Range input customization */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: linear-gradient(90deg, var(--sun), var(--coral));
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--foam);
+  border: 2px solid var(--sun);
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(244, 162, 97, 0.15);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--foam);
+  border: 2px solid var(--sun);
+  cursor: pointer;
+}
+
+/* Plotly tweaks: remove default white bg from svg */
+.js-plotly-plot .plotly .modebar {
+  display: none !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sky-dim);
+}
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 0%, var(--card-2) 50%, var(--card) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
