@@ -38,7 +38,11 @@ interface TooltipState {
   spot: SpotAggregate;
 }
 
-export function Map3D() {
+interface Map3DProps {
+  onPickLocation?: (lat: number, lng: number) => void;
+}
+
+export function Map3D({ onPickLocation }: Map3DProps = {}) {
   const { filtered, filter, setSpots } = useData();
   const [styleKey, setStyleKey] = useState<StyleKey>('Dark');
   const [hover, setHover] = useState<TooltipState | null>(null);
@@ -128,8 +132,14 @@ export function Map3D() {
         controller={true}
         layers={layers}
         getCursor={({ isDragging, isHovering }) =>
-          isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
+          isDragging ? 'grabbing' : isHovering ? 'pointer' : onPickLocation ? 'crosshair' : 'grab'
         }
+        onClick={(info: PickingInfo) => {
+          if (!onPickLocation) return;
+          if (info.object) return; // column click already handled
+          const c = info.coordinate;
+          if (Array.isArray(c) && c.length >= 2) onPickLocation(c[1], c[0]);
+        }}
       >
         <Map
           reuseMaps
