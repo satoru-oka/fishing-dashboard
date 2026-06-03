@@ -10,6 +10,7 @@ import { ChartsGrid } from './components/ChartsGrid';
 import { CatchForm } from './components/CatchForm';
 import { PhotoGallery } from './components/PhotoGallery';
 import { Recommendations } from './components/Recommendations';
+import { ForecastView } from './components/ForecastView';
 
 function Skeleton() {
   return (
@@ -70,6 +71,7 @@ function Shell() {
       <TimeSlider />
       <PhotoGallery />
       <Recommendations />
+      <ForecastView />
       <ChartsGrid />
       <footer className="border-t border-[var(--border)] px-8 py-6 text-center font-mincho text-[11px] uppercase tracking-[0.3em] text-[var(--sky-dim)]">
         Tokyo Bay · 釣果ジャーナリズム · {new Date().getFullYear()}
