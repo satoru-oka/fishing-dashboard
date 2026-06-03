@@ -9,6 +9,7 @@ import { TimeSlider } from './components/TimeSlider';
 import { ChartsGrid } from './components/ChartsGrid';
 import { CatchForm } from './components/CatchForm';
 import { PhotoGallery } from './components/PhotoGallery';
+import { Recommendations } from './components/Recommendations';
 
 function Skeleton() {
   return (
@@ -68,6 +69,7 @@ function Shell() {
       </div>
       <TimeSlider />
       <PhotoGallery />
+      <Recommendations />
       <ChartsGrid />
       <footer className="border-t border-[var(--border)] px-8 py-6 text-center font-mincho text-[11px] uppercase tracking-[0.3em] text-[var(--sky-dim)]">
         Tokyo Bay · 釣果ジャーナリズム · {new Date().getFullYear()}
