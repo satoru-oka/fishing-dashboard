@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+function isInsideDir(parentDir: string, targetPath: string): boolean {
+  const relative = path.relative(parentDir, targetPath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
 // Serve /data/* from the repo-root `data/` folder during dev, and copy on build.
 function dataFolderPlugin(): Plugin {
   const dataDir = path.resolve(__dirname, 'data');
@@ -14,10 +19,25 @@ function dataFolderPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (!req.url?.startsWith('/data/')) return next();
-        const rel = decodeURIComponent(req.url.replace(/^\/data\//, '').split('?')[0]);
-        const filePath = path.join(dataDir, rel);
-        if (!filePath.startsWith(dataDir)) return next();
-        if (!fs.existsSync(filePath)) return next();
+        let rel: string;
+        try {
+          rel = decodeURIComponent(req.url.replace(/^\/data\//, '').split('?')[0]);
+        } catch {
+          res.statusCode = 400;
+          res.end('Bad Request');
+          return;
+        }
+        const filePath = path.resolve(dataDir, rel);
+        if (!isInsideDir(dataDir, filePath)) {
+          res.statusCode = 403;
+          res.end('Forbidden');
+          return;
+        }
+        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+          res.statusCode = 404;
+          res.end('Not Found');
+          return;
+        }
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         fs.createReadStream(filePath).pipe(res);
       });

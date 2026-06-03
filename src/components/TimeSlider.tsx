@@ -13,6 +13,22 @@ function monthsBetween(a: Date, b: Date): Date[] {
   return months;
 }
 
+function monthIndexForDate(date: Date, months: Date[]): number {
+  if (months.length === 0) return 0;
+  const first = months[0];
+  const raw = (date.getFullYear() - first.getFullYear()) * 12 + date.getMonth() - first.getMonth();
+  return Math.max(0, Math.min(months.length - 1, raw));
+}
+
+function indicesFromDateRange(dateRange: [Date, Date] | null, months: Date[]): [number, number] {
+  if (months.length === 0) return [0, 0];
+  if (!dateRange) return [0, months.length - 1];
+
+  const start = monthIndexForDate(dateRange[0], months);
+  const end = monthIndexForDate(dateRange[1], months);
+  return [Math.min(start, end), Math.max(start, end)];
+}
+
 export function TimeSlider() {
   const { dataRange, filter, dispatch } = useData();
   const months = useMemo(() => (dataRange ? monthsBetween(dataRange[0], dataRange[1]) : []), [dataRange]);
@@ -23,29 +39,23 @@ export function TimeSlider() {
   const [endIdx, setEndIdx] = useState(Math.max(0, total - 1));
   const [playing, setPlaying] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const pendingIndexDispatchRef = useRef(false);
 
   useEffect(() => {
-    setStartIdx(0);
-    setEndIdx(Math.max(0, total - 1));
-  }, [total]);
+    const [nextStartIdx, nextEndIdx] = indicesFromDateRange(filter.dateRange, months);
+    setStartIdx((prev) => (prev === nextStartIdx ? prev : nextStartIdx));
+    setEndIdx((prev) => (prev === nextEndIdx ? prev : nextEndIdx));
+  }, [filter.dateRange, months]);
 
-  // sync filter dateRange from indices
+  // sync filter dateRange from user-driven index changes
   useEffect(() => {
-    if (total === 0) return;
+    if (total === 0 || !pendingIndexDispatchRef.current) return;
+    pendingIndexDispatchRef.current = false;
     const s = months[Math.min(startIdx, total - 1)];
     const e = endOfMonth(months[Math.min(endIdx, total - 1)]);
     const isFull = startIdx === 0 && endIdx === total - 1;
     dispatch({ type: 'SET_DATE_RANGE', payload: isFull ? null : [s, e] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startIdx, endIdx, total]);
-
-  // if filter.dateRange is externally reset (e.g. from RESET), realign
-  useEffect(() => {
-    if (filter.dateRange === null && total > 0) {
-      setStartIdx(0);
-      setEndIdx(total - 1);
-    }
-  }, [filter.dateRange, total]);
+  }, [dispatch, endIdx, months, startIdx, total]);
 
   // playback: 1-month sliding window
   useEffect(() => {
@@ -57,6 +67,7 @@ export function TimeSlider() {
       return;
     }
     timerRef.current = window.setInterval(() => {
+      pendingIndexDispatchRef.current = true;
       setEndIdx((prevEnd) => {
         const nextEnd = prevEnd + 1;
         if (nextEnd >= total) {
@@ -84,6 +95,7 @@ export function TimeSlider() {
     if (!playing) {
       // if at end, restart
       if (endIdx >= total - 1) {
+        pendingIndexDispatchRef.current = true;
         setStartIdx(0);
         setEndIdx(0);
       }
@@ -138,7 +150,9 @@ export function TimeSlider() {
             value={startIdx}
             onChange={(e) => {
               const v = Number(e.target.value);
-              setStartIdx(Math.min(v, endIdx));
+              const next = Math.min(v, endIdx);
+              pendingIndexDispatchRef.current = next !== startIdx;
+              setStartIdx(next);
             }}
             className="w-full accent-[var(--sun)]"
             aria-label="開始月"
@@ -155,7 +169,9 @@ export function TimeSlider() {
             value={endIdx}
             onChange={(e) => {
               const v = Number(e.target.value);
-              setEndIdx(Math.max(v, startIdx));
+              const next = Math.max(v, startIdx);
+              pendingIndexDispatchRef.current = next !== endIdx;
+              setEndIdx(next);
             }}
             className="w-full accent-[var(--coral)]"
             aria-label="終了月"
