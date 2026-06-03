@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import Plot from './Plot';
 import { useData } from '../../context/DataContext';
 import { aggregateMonthlyBySpecies } from '../../lib/aggregations';
-import { baseConfig, baseLayout, speciesPalette } from '../../theme';
+import { axisTitle, baseConfig, baseLayout, palette, speciesPalette } from '../../theme';
 import { ChartCard } from './ChartCard';
 
 export function MonthlyStackedChart({ delay = 0 }: { delay?: number }) {
@@ -15,7 +15,7 @@ export function MonthlyStackedChart({ delay = 0 }: { delay?: number }) {
     x: data.months,
     y: data.matrix[i],
     marker: {
-      color: sp === 'その他' ? '#5a7385' : speciesPalette[i % speciesPalette.length],
+      color: sp === 'その他' ? palette.skyDim : speciesPalette[i % speciesPalette.length],
       line: { width: 0 },
     },
     hovertemplate: '%{x}<br>' + sp + ': <b>%{y}</b><extra></extra>',
@@ -29,7 +29,7 @@ export function MonthlyStackedChart({ delay = 0 }: { delay?: number }) {
           ...baseLayout,
           barmode: 'stack',
           xaxis: { ...baseLayout.xaxis, type: 'category', tickangle: -30 },
-          yaxis: { ...baseLayout.yaxis, title: { text: '釣果数 (尾)', font: { color: '#c8c5b1', size: 11 } } },
+          yaxis: { ...baseLayout.yaxis, ...axisTitle('釣果数 (尾)') },
         }}
         config={baseConfig}
         style={{ width: '100%', height: '100%' }}

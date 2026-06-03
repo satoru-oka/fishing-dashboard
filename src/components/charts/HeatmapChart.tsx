@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import Plot from './Plot';
 import { useData } from '../../context/DataContext';
 import { spotSpeciesMatrix } from '../../lib/aggregations';
-import { baseConfig, baseLayout, sunsetScale } from '../../theme';
+import { baseConfig, baseLayout, palette, sunsetScale } from '../../theme';
 import { ChartCard } from './ChartCard';
 
 export function HeatmapChart({ delay = 0 }: { delay?: number }) {
@@ -21,7 +21,7 @@ export function HeatmapChart({ delay = 0 }: { delay?: number }) {
             colorscale: sunsetScale,
             hovertemplate: '%{y} × %{x}<br><b>%{z}</b> 尾<extra></extra>',
             colorbar: {
-              tickfont: { color: '#c8c5b1', size: 10 },
+              tickfont: { color: palette.foamDim, size: 10 },
               outlinewidth: 0,
               thickness: 10,
               len: 0.85,

@@ -17,8 +17,10 @@ npm run dev
 
 ブラウザで <http://localhost:5173> を開きます。
 
-> `data/catches_enriched.csv` と `data/tokyo_bay_stations_geo.csv` がリポジトリ直下に置かれていることが前提です。
+> `data/catches_enriched.csv` がリポジトリ直下に置かれていることが前提です。
 > Vite の dev サーバーが `/data/*` を該当フォルダから配信します（ビルド時は `dist/data/` にコピー）。
+>
+> `data/tokyo_bay_stations_geo.csv` は将来の拡張用のリファレンス（東京湾の観測所メタ）。現状アプリ本体は参照していませんが、`data/` 配下にあるため dev / build どちらでも配信対象になります。
 
 ## 主な機能
 

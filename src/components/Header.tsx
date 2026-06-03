@@ -1,9 +1,19 @@
+import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useData } from '../context/DataContext';
+import { uniqueValues } from '../lib/aggregations';
 
 export function Header() {
-  const { dataRange, filter, reset, filtered, loading } = useData();
+  const { rows, dataRange, filter, reset, filtered, loading } = useData();
   const range = filter.dateRange ?? dataRange;
+  const { spotCount, speciesCount } = useMemo(
+    () => ({
+      spotCount: uniqueValues(rows, (r) => r.spot_name).length,
+      speciesCount: uniqueValues(rows, (r) => r.species).length,
+    }),
+    [rows],
+  );
+
   return (
     <header className="reveal flex items-end justify-between border-b border-[var(--border)] px-8 py-6">
       <div>
@@ -14,7 +24,9 @@ export function Header() {
           東京湾 <span className="text-[var(--sun)]">釣果</span> ダッシュボード
         </h1>
         <p className="mt-2 font-sans text-sm text-[var(--foam-dim)]">
-          3D 地図と 6 枚の分析チャートで、湾内 8 釣り場・14 魚種の釣果を読み解く。
+          {spotCount > 0 && speciesCount > 0
+            ? `3D 地図と 6 枚の分析チャートで、湾内 ${spotCount} 釣り場・${speciesCount} 魚種の釣果を読み解く。`
+            : '3D 地図と 6 枚の分析チャートで、東京湾の釣果を読み解く。'}
         </p>
       </div>
       <div className="flex items-end gap-6">

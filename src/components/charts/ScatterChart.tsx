@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import Plot from './Plot';
 import { useData } from '../../context/DataContext';
-import { baseConfig, baseLayout, speciesPalette } from '../../theme';
+import { axisTitle, baseConfig, baseLayout, palette, speciesPalette } from '../../theme';
 import { ChartCard } from './ChartCard';
 
 export function ScatterChart({ delay = 0 }: { delay?: number }) {
@@ -30,7 +30,7 @@ export function ScatterChart({ delay = 0 }: { delay?: number }) {
         color: speciesPalette[i % speciesPalette.length],
         size: 9,
         opacity: 0.75,
-        line: { color: '#0a1428', width: 1 },
+        line: { color: palette.bg, width: 1 },
       },
       hovertemplate: '<b>%{fullData.name}</b><br>%{x} cm / %{y} g<br>%{text}<extra></extra>',
     }));
@@ -42,12 +42,8 @@ export function ScatterChart({ delay = 0 }: { delay?: number }) {
         data={traces}
         layout={{
           ...baseLayout,
-          xaxis: { ...baseLayout.xaxis, title: { text: '体長 (cm)', font: { color: '#c8c5b1', size: 11 } } },
-          yaxis: {
-            ...baseLayout.yaxis,
-            type: 'log',
-            title: { text: '重量 (g, log)', font: { color: '#c8c5b1', size: 11 } },
-          },
+          xaxis: { ...baseLayout.xaxis, ...axisTitle('体長 (cm)') },
+          yaxis: { ...baseLayout.yaxis, type: 'log', ...axisTitle('重量 (g, log)') },
           legend: { ...baseLayout.legend, y: -0.28 },
         }}
         config={baseConfig}

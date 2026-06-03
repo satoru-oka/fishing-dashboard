@@ -1,6 +1,5 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -24,26 +23,12 @@ const initialFilter: FilterState = {
 
 function reducer(state: FilterState, action: FilterAction): FilterState {
   switch (action.type) {
-    case 'SET_DATE_RANGE':
-      return { ...state, dateRange: action.payload };
-    case 'SET_SPECIES':
-      return { ...state, species: action.payload };
-    case 'SET_SPOTS':
-      return { ...state, spots: action.payload };
-    case 'SET_WEATHER':
-      return { ...state, weather: action.payload };
-    case 'SET_TIDES':
-      return { ...state, tides: action.payload };
-    case 'TOGGLE_EXCLUDE_RELEASED':
-      return { ...state, excludeReleased: !state.excludeReleased };
-    case 'SET_EXCLUDE_RELEASED':
-      return { ...state, excludeReleased: action.payload };
+    case 'SET':
+      return { ...state, [action.key]: action.value };
     case 'HYDRATE':
       return { ...state, ...action.payload };
     case 'RESET':
       return { ...initialFilter };
-    default:
-      return state;
   }
 }
 
@@ -53,8 +38,14 @@ interface DataContextValue {
   rows: Catch[];
   filtered: Catch[];
   filter: FilterState;
-  dispatch: React.Dispatch<FilterAction>;
   dataRange: [Date, Date] | null;
+  setDateRange: (v: FilterState['dateRange']) => void;
+  setSpecies: (v: string[]) => void;
+  setSpots: (v: string[]) => void;
+  setWeather: (v: string[]) => void;
+  setTides: (v: string[]) => void;
+  setExcludeReleased: (v: boolean) => void;
+  toggleExcludeReleased: () => void;
   reset: () => void;
 }
 
@@ -73,7 +64,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .then((rs) => {
         if (cancelled) return;
         setRows(rs);
-        // hydrate from URL after data loads
         const fromUrl = readUrlFilter();
         if (Object.keys(fromUrl).length > 0) {
           dispatch({ type: 'HYDRATE', payload: fromUrl });
@@ -96,10 +86,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
     syncUrl(filter);
   }, [filter, hydrated]);
 
+  // Back/forward navigation: re-hydrate from the URL.
+  useEffect(() => {
+    if (!hydrated) return;
+    const onPop = () => {
+      dispatch({ type: 'RESET' });
+      const fromUrl = readUrlFilter();
+      if (Object.keys(fromUrl).length > 0) {
+        dispatch({ type: 'HYDRATE', payload: fromUrl });
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [hydrated]);
+
   const filtered = useMemo(() => applyFilters(rows, filter), [rows, filter]);
   const dataRange = useMemo(() => getDataDateRange(rows), [rows]);
-
-  const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
 
   const value: DataContextValue = {
     loading,
@@ -107,9 +109,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     rows,
     filtered,
     filter,
-    dispatch,
     dataRange,
-    reset,
+    setDateRange: (v) => dispatch({ type: 'SET', key: 'dateRange', value: v }),
+    setSpecies: (v) => dispatch({ type: 'SET', key: 'species', value: v }),
+    setSpots: (v) => dispatch({ type: 'SET', key: 'spots', value: v }),
+    setWeather: (v) => dispatch({ type: 'SET', key: 'weather', value: v }),
+    setTides: (v) => dispatch({ type: 'SET', key: 'tides', value: v }),
+    setExcludeReleased: (v) => dispatch({ type: 'SET', key: 'excludeReleased', value: v }),
+    toggleExcludeReleased: () =>
+      dispatch({ type: 'SET', key: 'excludeReleased', value: !filter.excludeReleased }),
+    reset: () => dispatch({ type: 'RESET' }),
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
