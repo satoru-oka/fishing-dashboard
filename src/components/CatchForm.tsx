@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { useData } from '../context/DataContext';
 import { uniqueValues } from '../lib/aggregations';
 import { compressImage, isLikelyHeic } from '../lib/photo';
+import { clearDraft, loadDraft, saveDraft } from '../lib/local-store';
 import type { Catch } from '../types';
 
 interface CatchFormProps {
@@ -71,9 +72,25 @@ function parseNumber(v: string): number {
 
 export function CatchForm({ open, onClose, initialLatLng }: CatchFormProps) {
   const { rows, addCatches } = useData();
-  const [form, setForm] = useState<FormState>(() => blankForm(initialLatLng));
+  const [form, setForm] = useState<FormState>(() => {
+    const draft = loadDraft<FormState>();
+    if (draft) return { ...blankForm(initialLatLng), ...draft };
+    return blankForm(initialLatLng);
+  });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const debounceRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      saveDraft(form);
+    }, 400);
+    return () => {
+      if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    };
+  }, [form, open]);
 
   const speciesList = useMemo(() => uniqueValues(rows, (r) => r.species).sort(), [rows]);
   const spotList = useMemo(() => uniqueValues(rows, (r) => r.spot_name).sort(), [rows]);
@@ -168,7 +185,17 @@ export function CatchForm({ open, onClose, initialLatLng }: CatchFormProps) {
       setErr('追加に失敗しました (catch_id 重複)');
       return;
     }
+    clearDraft();
     onClose();
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setForm(blankForm(initialLatLng));
   };
 
   return (
@@ -193,17 +220,25 @@ export function CatchForm({ open, onClose, initialLatLng }: CatchFormProps) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-sm border border-[var(--border)] px-3 py-1 font-mincho text-xs text-[var(--foam-dim)] hover:border-[var(--coral)] hover:text-[var(--coral)]"
           >
             閉じる
           </button>
         </div>
 
-        <p className="mb-3 font-sans text-[11px] text-[var(--foam-dim)]">
-          地図上の柱をクリック → 緯度経度が自動入力されます。追加した釣果は localStorage に保存され、CSV
-          書出から書き出せます。
-        </p>
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-sans text-[11px] text-[var(--foam-dim)]">
+            地図上の柱をクリック → 緯度経度が自動入力されます。入力途中の内容は自動で下書き保存され、オフラインでもそのまま記録できます。
+          </p>
+          <button
+            type="button"
+            onClick={handleDiscardDraft}
+            className="font-mono text-[10px] text-[var(--sky)] underline-offset-2 hover:text-[var(--sun)] hover:underline"
+          >
+            下書き破棄
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Field label="日時 *">

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useData } from '../context/DataContext';
 import { uniqueValues } from '../lib/aggregations';
+import { useOnlineStatus } from '../lib/online-status';
 import { CsvMenu } from './CsvMenu';
 
 interface HeaderProps {
@@ -9,7 +10,8 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenForm }: HeaderProps = {}) {
-  const { rows, dataRange, filter, reset, filtered, loading } = useData();
+  const { rows, dataRange, filter, reset, filtered, loading, userRows } = useData();
+  const online = useOnlineStatus();
   const range = filter.dateRange ?? dataRange;
   const { spotCount, speciesCount } = useMemo(
     () => ({
@@ -46,6 +48,23 @@ export function Header({ onOpenForm }: HeaderProps = {}) {
           </div>
           <div className="font-mono text-[11px] text-[var(--sky)]">
             {loading ? 'loading…' : `${filtered.length} records`}
+          </div>
+          <div className="mt-1 flex items-center justify-end gap-1.5 font-mono text-[10px]">
+            <span
+              aria-hidden="true"
+              className={
+                'inline-block h-1.5 w-1.5 rounded-full ' +
+                (online ? 'bg-[var(--algae)]' : 'bg-[var(--coral)]')
+              }
+            />
+            <span className={online ? 'text-[var(--algae)]' : 'text-[var(--coral)]'}>
+              {online ? 'online' : 'offline'}
+            </span>
+            {userRows.length > 0 && (
+              <span className="ml-2 text-[var(--gold)]" title="ローカルに保存された追加釣果">
+                +{userRows.length} local
+              </span>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
