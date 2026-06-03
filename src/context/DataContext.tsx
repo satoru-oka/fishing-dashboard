@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -8,9 +9,10 @@ import {
   type ReactNode,
 } from 'react';
 import type { Catch, FilterAction, FilterState } from '../types';
-import { loadCatches } from '../lib/csv';
+import { loadCatches, mergeCatches } from '../lib/csv';
 import { applyFilters, getDataDateRange } from '../lib/aggregations';
 import { readUrlFilter, syncUrl } from '../lib/url-state';
+import { clearUserCatches, loadUserCatches, saveUserCatches } from '../lib/local-store';
 
 const initialFilter: FilterState = {
   dateRange: null,
@@ -36,6 +38,8 @@ interface DataContextValue {
   loading: boolean;
   error: string | null;
   rows: Catch[];
+  baseRows: Catch[];
+  userRows: Catch[];
   filtered: Catch[];
   filter: FilterState;
   dataRange: [Date, Date] | null;
@@ -47,12 +51,16 @@ interface DataContextValue {
   setExcludeReleased: (v: boolean) => void;
   toggleExcludeReleased: () => void;
   reset: () => void;
+  addCatches: (incoming: Catch[]) => { added: number; duplicates: number };
+  removeUserCatch: (catchId: string) => void;
+  clearAllUserCatches: () => void;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [rows, setRows] = useState<Catch[]>([]);
+  const [baseRows, setBaseRows] = useState<Catch[]>([]);
+  const [userRows, setUserRows] = useState<Catch[]>(() => loadUserCatches());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, dispatch] = useReducer(reducer, initialFilter);
@@ -63,7 +71,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loadCatches()
       .then((rs) => {
         if (cancelled) return;
-        setRows(rs);
+        setBaseRows(rs);
         const fromUrl = readUrlFilter();
         if (Object.keys(fromUrl).length > 0) {
           dispatch({ type: 'HYDRATE', payload: fromUrl });
@@ -86,7 +94,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     syncUrl(filter);
   }, [filter, hydrated]);
 
-  // Back/forward navigation: re-hydrate from the URL.
   useEffect(() => {
     if (!hydrated) return;
     const onPop = () => {
@@ -100,13 +107,46 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('popstate', onPop);
   }, [hydrated]);
 
+  const rows = useMemo(
+    () => mergeCatches(baseRows, userRows).merged,
+    [baseRows, userRows],
+  );
   const filtered = useMemo(() => applyFilters(rows, filter), [rows, filter]);
   const dataRange = useMemo(() => getDataDateRange(rows), [rows]);
+
+  const addCatches = useCallback(
+    (incoming: Catch[]) => {
+      const merged = mergeCatches(rows, incoming);
+      const onlyNew = merged.merged.slice(rows.length);
+      setUserRows((prev) => {
+        const next = [...prev, ...onlyNew];
+        saveUserCatches(next);
+        return next;
+      });
+      return { added: merged.added, duplicates: merged.duplicates };
+    },
+    [rows],
+  );
+
+  const removeUserCatch = useCallback((catchId: string) => {
+    setUserRows((prev) => {
+      const next = prev.filter((r) => r.catch_id !== catchId);
+      saveUserCatches(next);
+      return next;
+    });
+  }, []);
+
+  const clearAllUserCatches = useCallback(() => {
+    setUserRows([]);
+    clearUserCatches();
+  }, []);
 
   const value: DataContextValue = {
     loading,
     error,
     rows,
+    baseRows,
+    userRows,
     filtered,
     filter,
     dataRange,
@@ -119,6 +159,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     toggleExcludeReleased: () =>
       dispatch({ type: 'SET', key: 'excludeReleased', value: !filter.excludeReleased }),
     reset: () => dispatch({ type: 'RESET' }),
+    addCatches,
+    removeUserCatch,
+    clearAllUserCatches,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
