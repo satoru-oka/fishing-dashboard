@@ -4,7 +4,11 @@ import { useData } from '../context/DataContext';
 import { uniqueValues } from '../lib/aggregations';
 import { CsvMenu } from './CsvMenu';
 
-export function Header() {
+interface HeaderProps {
+  onOpenForm?: () => void;
+}
+
+export function Header({ onOpenForm }: HeaderProps = {}) {
   const { rows, dataRange, filter, reset, filtered, loading } = useData();
   const range = filter.dateRange ?? dataRange;
   const { spotCount, speciesCount } = useMemo(
@@ -45,13 +49,24 @@ export function Header() {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-sm border border-[var(--border)] bg-[var(--card)] px-4 py-2 font-mincho text-xs tracking-[0.2em] text-[var(--foam-dim)] transition hover:border-[var(--sun)] hover:text-[var(--sun)] focus:outline-none focus:ring-2 focus:ring-[var(--sun)]/50"
-          >
-            ＲＥＳＥＴ
-          </button>
+          <div className="flex gap-2">
+            {onOpenForm && (
+              <button
+                type="button"
+                onClick={onOpenForm}
+                className="rounded-sm border border-[var(--sun)] bg-[var(--sun)]/15 px-4 py-2 font-mincho text-xs tracking-[0.2em] text-[var(--sun)] transition hover:bg-[var(--sun)]/25 focus:outline-none focus:ring-2 focus:ring-[var(--sun)]/50"
+              >
+                ＋ 釣果を追加
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-sm border border-[var(--border)] bg-[var(--card)] px-4 py-2 font-mincho text-xs tracking-[0.2em] text-[var(--foam-dim)] transition hover:border-[var(--sun)] hover:text-[var(--sun)] focus:outline-none focus:ring-2 focus:ring-[var(--sun)]/50"
+            >
+              ＲＥＳＥＴ
+            </button>
+          </div>
           <CsvMenu />
         </div>
       </div>
