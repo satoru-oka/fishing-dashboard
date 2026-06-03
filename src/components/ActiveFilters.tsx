@@ -1,15 +1,17 @@
 import { format } from 'date-fns';
 import { useData } from '../context/DataContext';
 
+type Tone = 'sun' | 'gold' | 'coral' | 'algae' | 'sky';
+
 interface Pill {
   key: string;
   label: string;
   value: string;
   onClear: () => void;
-  tone: 'sun' | 'gold' | 'coral' | 'algae' | 'sky';
+  tone: Tone;
 }
 
-const toneClass: Record<Pill['tone'], string> = {
+const toneClass: Record<Tone, string> = {
   sun: 'border-[var(--sun)] bg-[var(--sun)]/15 text-[var(--sun)]',
   gold: 'border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold)]',
   coral: 'border-[var(--coral)] bg-[var(--coral)]/15 text-[var(--coral)]',
@@ -17,91 +19,75 @@ const toneClass: Record<Pill['tone'], string> = {
   sky: 'border-[var(--sky)] bg-[var(--sky)]/15 text-[var(--sky)]',
 };
 
+type MultiField = 'species' | 'spots' | 'weather' | 'tides';
+const MULTI_FIELDS: Array<{ key: MultiField; label: string; tone: Tone }> = [
+  { key: 'species', label: '魚種', tone: 'sun' },
+  { key: 'spots', label: '釣り場', tone: 'coral' },
+  { key: 'weather', label: '天気', tone: 'sky' },
+  { key: 'tides', label: '潮', tone: 'sky' },
+];
+
 export function ActiveFilters() {
-  const { filter, dispatch, dataRange, reset } = useData();
+  const {
+    rows,
+    filter,
+    dataRange,
+    reset,
+    setDateRange,
+    setSpecies,
+    setSpots,
+    setWeather,
+    setTides,
+    setExcludeReleased,
+  } = useData();
+
+  const multiSetters: Record<MultiField, (v: string[]) => void> = {
+    species: setSpecies,
+    spots: setSpots,
+    weather: setWeather,
+    tides: setTides,
+  };
+
   const pills: Pill[] = [];
 
   if (filter.dateRange) {
     const [a, b] = filter.dateRange;
-    const sameMonth =
-      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+    const sameMonth = a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
     const dataFull =
       dataRange &&
       a.getTime() <= dataRange[0].getTime() &&
       b.getTime() >= dataRange[1].getTime();
     if (!dataFull) {
-      const label = sameMonth
-        ? format(a, 'yyyy年MM月')
-        : `${format(a, 'yyyy.MM')} – ${format(b, 'yyyy.MM')}`;
       pills.push({
         key: 'date',
         label: '期間',
-        value: label,
+        value: sameMonth ? format(a, 'yyyy年MM月') : `${format(a, 'yyyy.MM')} – ${format(b, 'yyyy.MM')}`,
         tone: 'gold',
-        onClear: () => dispatch({ type: 'SET_DATE_RANGE', payload: null }),
+        onClear: () => setDateRange(null),
       });
     }
   }
 
-  for (const sp of filter.species) {
-    pills.push({
-      key: `sp:${sp}`,
-      label: '魚種',
-      value: sp,
-      tone: 'sun',
-      onClear: () =>
-        dispatch({
-          type: 'SET_SPECIES',
-          payload: filter.species.filter((s) => s !== sp),
-        }),
-    });
+  for (const { key, label, tone } of MULTI_FIELDS) {
+    const values = filter[key] as string[];
+    for (const v of values) {
+      pills.push({
+        key: `${key}:${v}`,
+        label,
+        value: v,
+        tone,
+        onClear: () => multiSetters[key](values.filter((s) => s !== v)),
+      });
+    }
   }
-  for (const sp of filter.spots) {
-    pills.push({
-      key: `spot:${sp}`,
-      label: '釣り場',
-      value: sp,
-      tone: 'coral',
-      onClear: () =>
-        dispatch({
-          type: 'SET_SPOTS',
-          payload: filter.spots.filter((s) => s !== sp),
-        }),
-    });
-  }
-  for (const w of filter.weather) {
-    pills.push({
-      key: `w:${w}`,
-      label: '天気',
-      value: w,
-      tone: 'sky',
-      onClear: () =>
-        dispatch({
-          type: 'SET_WEATHER',
-          payload: filter.weather.filter((s) => s !== w),
-        }),
-    });
-  }
-  for (const t of filter.tides) {
-    pills.push({
-      key: `t:${t}`,
-      label: '潮',
-      value: t,
-      tone: 'sky',
-      onClear: () =>
-        dispatch({
-          type: 'SET_TIDES',
-          payload: filter.tides.filter((s) => s !== t),
-        }),
-    });
-  }
+
   if (filter.excludeReleased) {
     pills.push({
       key: 'rel',
       label: 'リリース',
       value: '除外',
       tone: 'algae',
-      onClear: () => dispatch({ type: 'SET_EXCLUDE_RELEASED', payload: false }),
+      onClear: () => setExcludeReleased(false),
     });
   }
 
@@ -112,7 +98,7 @@ export function ActiveFilters() {
           Active Filters
         </span>
         <span className="font-sans text-[11px] text-[var(--foam-dim)]">
-          フィルタなし — 全 166 件の釣果を表示中
+          フィルタなし — 全 {rows.length} 件の釣果を表示中
         </span>
       </section>
     );

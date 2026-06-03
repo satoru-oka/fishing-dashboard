@@ -53,18 +53,23 @@ function Chips({ label, options, selected, onChange }: ChipsProps) {
 }
 
 export function FiltersPanel() {
-  const { rows, filter, dispatch } = useData();
+  const {
+    rows,
+    filter,
+    setSpecies,
+    setSpots,
+    setWeather,
+    setTides,
+    toggleExcludeReleased,
+  } = useData();
 
-  const speciesList = useMemo(
-    () =>
-      uniqueValues(rows, (r) => r.species).sort((a, b) => {
-        // sort by overall count desc
-        const counts: Record<string, number> = {};
-        for (const r of rows) counts[r.species] = (counts[r.species] ?? 0) + r.count;
-        return (counts[b] ?? 0) - (counts[a] ?? 0);
-      }),
-    [rows],
-  );
+  const speciesList = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.species, (counts.get(r.species) ?? 0) + r.count);
+    return uniqueValues(rows, (r) => r.species).sort(
+      (a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0),
+    );
+  }, [rows]);
   const spotList = useMemo(() => uniqueValues(rows, (r) => r.spot_name).sort(), [rows]);
   const weatherList = useMemo(() => uniqueValues(rows, (r) => r.weather).sort(), [rows]);
   const tideList = useMemo(() => uniqueValues(rows, (r) => r.tide).sort(), [rows]);
@@ -79,30 +84,10 @@ export function FiltersPanel() {
         </p>
       </div>
 
-      <Chips
-        label="魚種 Species"
-        options={speciesList}
-        selected={filter.species}
-        onChange={(v) => dispatch({ type: 'SET_SPECIES', payload: v })}
-      />
-      <Chips
-        label="釣り場 Spot"
-        options={spotList}
-        selected={filter.spots}
-        onChange={(v) => dispatch({ type: 'SET_SPOTS', payload: v })}
-      />
-      <Chips
-        label="天気 Weather"
-        options={weatherList}
-        selected={filter.weather}
-        onChange={(v) => dispatch({ type: 'SET_WEATHER', payload: v })}
-      />
-      <Chips
-        label="潮 Tide"
-        options={tideList}
-        selected={filter.tides}
-        onChange={(v) => dispatch({ type: 'SET_TIDES', payload: v })}
-      />
+      <Chips label="魚種 Species" options={speciesList} selected={filter.species} onChange={setSpecies} />
+      <Chips label="釣り場 Spot" options={spotList} selected={filter.spots} onChange={setSpots} />
+      <Chips label="天気 Weather" options={weatherList} selected={filter.weather} onChange={setWeather} />
+      <Chips label="潮 Tide" options={tideList} selected={filter.tides} onChange={setTides} />
 
       <label className="mt-auto flex items-center justify-between rounded-sm border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 cursor-pointer">
         <div>
@@ -114,7 +99,7 @@ export function FiltersPanel() {
         <input
           type="checkbox"
           checked={filter.excludeReleased}
-          onChange={() => dispatch({ type: 'TOGGLE_EXCLUDE_RELEASED' })}
+          onChange={toggleExcludeReleased}
           className="h-4 w-4 cursor-pointer accent-[var(--sun)]"
           aria-label="リリースを除外"
         />

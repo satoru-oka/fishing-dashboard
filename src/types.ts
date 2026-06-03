@@ -33,13 +33,7 @@ export interface FilterState {
 }
 
 export type FilterAction =
-  | { type: 'SET_DATE_RANGE'; payload: [Date, Date] | null }
-  | { type: 'SET_SPECIES'; payload: string[] }
-  | { type: 'SET_SPOTS'; payload: string[] }
-  | { type: 'SET_WEATHER'; payload: string[] }
-  | { type: 'SET_TIDES'; payload: string[] }
-  | { type: 'TOGGLE_EXCLUDE_RELEASED' }
-  | { type: 'SET_EXCLUDE_RELEASED'; payload: boolean }
+  | { [K in keyof FilterState]: { type: 'SET'; key: K; value: FilterState[K] } }[keyof FilterState]
   | { type: 'RESET' }
   | { type: 'HYDRATE'; payload: Partial<FilterState> };
 

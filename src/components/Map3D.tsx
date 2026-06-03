@@ -7,6 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useData } from '../context/DataContext';
 import { aggregateBySpot } from '../lib/aggregations';
 import type { SpotAggregate } from '../types';
+import { coralSunGoldStops, cssLinearGradient, lerpRgb } from '../theme';
 
 const MAP_STYLES = {
   Demo: 'https://demotiles.maplibre.org/style.json',
@@ -24,30 +25,12 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-// linear interpolation from coral -> gold based on avgLength normalized 0..1
 function colorForLength(t: number): [number, number, number, number] {
-  // coral = #e76f51 (231,111,81), sun = #f4a261 (244,162,97), gold = #e9c46a (233,196,106)
-  const stops: Array<[number, [number, number, number]]> = [
-    [0, [231, 111, 81]],
-    [0.5, [244, 162, 97]],
-    [1, [233, 196, 106]],
-  ];
-  const clamped = Math.max(0, Math.min(1, t));
-  for (let i = 1; i < stops.length; i++) {
-    const [t1, c1] = stops[i];
-    const [t0, c0] = stops[i - 1];
-    if (clamped <= t1) {
-      const k = (clamped - t0) / (t1 - t0);
-      return [
-        c0[0] + (c1[0] - c0[0]) * k,
-        c0[1] + (c1[1] - c0[1]) * k,
-        c0[2] + (c1[2] - c0[2]) * k,
-        230,
-      ];
-    }
-  }
-  return [233, 196, 106, 230];
+  const [r, g, b] = lerpRgb(coralSunGoldStops, t);
+  return [r, g, b, 230];
 }
+
+const LEGEND_GRADIENT = cssLinearGradient(coralSunGoldStops);
 
 interface TooltipState {
   x: number;
@@ -56,7 +39,7 @@ interface TooltipState {
 }
 
 export function Map3D() {
-  const { filtered, filter, dispatch } = useData();
+  const { filtered, filter, setSpots } = useData();
   const [styleKey, setStyleKey] = useState<StyleKey>('Dark');
   const [hover, setHover] = useState<TooltipState | null>(null);
   const [elevAnim, setElevAnim] = useState(0); // 0..1 grows on mount
@@ -121,7 +104,7 @@ export function Map3D() {
           const d = info.object as SpotAggregate | undefined;
           if (!d) return;
           const already = filter.spots.length === 1 && filter.spots[0] === d.spot_name;
-          dispatch({ type: 'SET_SPOTS', payload: already ? [] : [d.spot_name] });
+          setSpots(already ? [] : [d.spot_name]);
         },
         onHover: (info: PickingInfo) => {
           if (info.object && info.x !== undefined && info.y !== undefined) {
@@ -135,7 +118,7 @@ export function Map3D() {
         },
       }),
     ],
-    [aggregates, dispatch, elevationScale, filter.spots, lengthRange],
+    [aggregates, elevationScale, filter.spots, lengthRange, setSpots],
   );
 
   return (
@@ -162,7 +145,7 @@ export function Map3D() {
           <div>高さ <span className="text-[var(--sky)]">= 釣果数</span></div>
           <div>色 <span className="text-[var(--sky)]">= 平均体長</span></div>
         </div>
-        <div className="mt-2 h-2 w-full rounded-sm" style={{ background: 'linear-gradient(90deg, #e76f51, #f4a261, #e9c46a)' }} />
+        <div className="mt-2 h-2 w-full rounded-sm" style={{ background: LEGEND_GRADIENT }} />
         <div className="mt-1 flex justify-between font-mono text-[10px] text-[var(--foam-dim)]">
           <span>{lengthRange[0].toFixed(0)}cm</span>
           <span>{lengthRange[1].toFixed(0)}cm</span>
