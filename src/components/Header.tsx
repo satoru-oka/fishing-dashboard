@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useData } from '../context/DataContext';
 import { uniqueValues } from '../lib/aggregations';
+import { CsvMenu } from './CsvMenu';
 
 export function Header() {
   const { rows, dataRange, filter, reset, filtered, loading } = useData();
@@ -43,13 +44,16 @@ export function Header() {
             {loading ? 'loading…' : `${filtered.length} records`}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-sm border border-[var(--border)] bg-[var(--card)] px-4 py-2 font-mincho text-xs tracking-[0.2em] text-[var(--foam-dim)] transition hover:border-[var(--sun)] hover:text-[var(--sun)] focus:outline-none focus:ring-2 focus:ring-[var(--sun)]/50"
-        >
-          ＲＥＳＥＴ
-        </button>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-sm border border-[var(--border)] bg-[var(--card)] px-4 py-2 font-mincho text-xs tracking-[0.2em] text-[var(--foam-dim)] transition hover:border-[var(--sun)] hover:text-[var(--sun)] focus:outline-none focus:ring-2 focus:ring-[var(--sun)]/50"
+          >
+            ＲＥＳＥＴ
+          </button>
+          <CsvMenu />
+        </div>
       </div>
     </header>
   );
