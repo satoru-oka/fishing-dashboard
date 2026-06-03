@@ -1,10 +1,23 @@
+import { endOfDay, format, isValid, parse, startOfDay } from 'date-fns';
 import type { FilterState } from '../types';
+
+const URL_DATE_FORMAT = 'yyyy-MM-dd';
+
+export function formatLocalDateParam(date: Date): string {
+  return format(date, URL_DATE_FORMAT);
+}
+
+export function parseLocalDateParam(value: string, edge: 'start' | 'end'): Date | null {
+  const parsed = parse(value, URL_DATE_FORMAT, new Date());
+  if (!isValid(parsed) || formatLocalDateParam(parsed) !== value) return null;
+  return edge === 'start' ? startOfDay(parsed) : endOfDay(parsed);
+}
 
 export function filterToParams(f: FilterState): URLSearchParams {
   const p = new URLSearchParams();
   if (f.dateRange) {
-    p.set('from', f.dateRange[0].toISOString().slice(0, 10));
-    p.set('to', f.dateRange[1].toISOString().slice(0, 10));
+    p.set('from', formatLocalDateParam(f.dateRange[0]));
+    p.set('to', formatLocalDateParam(f.dateRange[1]));
   }
   if (f.species.length) p.set('species', f.species.join(','));
   if (f.spots.length) p.set('spots', f.spots.join(','));
@@ -19,9 +32,9 @@ export function paramsToFilter(p: URLSearchParams): Partial<FilterState> {
   const from = p.get('from');
   const to = p.get('to');
   if (from && to) {
-    const f = new Date(from);
-    const t = new Date(to);
-    if (!Number.isNaN(f.getTime()) && !Number.isNaN(t.getTime())) {
+    const f = parseLocalDateParam(from, 'start');
+    const t = parseLocalDateParam(to, 'end');
+    if (f && t && f.getTime() <= t.getTime()) {
       out.dateRange = [f, t];
     }
   }
