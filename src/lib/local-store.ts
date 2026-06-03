@@ -50,3 +50,33 @@ export function clearUserCatches(): void {
   if (!ls) return;
   ls.removeItem(STORAGE_KEY);
 }
+
+const DRAFT_KEY = 'fishing-dashboard:catch-draft:v1';
+
+export function loadDraft<T>(): T | null {
+  const ls = safeStorage();
+  if (!ls) return null;
+  const raw = ls.getItem(DRAFT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDraft<T>(value: T): void {
+  const ls = safeStorage();
+  if (!ls) return;
+  try {
+    ls.setItem(DRAFT_KEY, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDraft(): void {
+  const ls = safeStorage();
+  if (!ls) return;
+  ls.removeItem(DRAFT_KEY);
+}
