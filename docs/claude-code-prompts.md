@@ -8,10 +8,10 @@
 
 ## Step 1 — vite.config.ts セキュリティ修正（#48, #51）
 
-既存ブランチ `codex/sam-19-secure-data-serving` の続きとして実施。
+既存ブランチ `fix/sam-19-secure-data-serving` の続きとして実施。
 
 ```text
-GitHub issue #48 と #51 を修正してください。ブランチは既存の codex/sam-19-secure-data-serving を使います。
+GitHub issue #48 と #51 を修正してください。ブランチは既存の fix/sam-19-secure-data-serving を使います。
 
 1. vite.config.ts の server.fs.allow: ['..'] を削除する。fs 設定が他に不要なら server.fs ごと削除してよい。port: 5173 は残す。
 2. 同ファイルの dataFolderPlugin のミドルウェアに symlink 対策を追加する。fs.existsSync / isFile チェックの後に fs.realpathSync(filePath) で実パスを取得し、isInsideDataDir(realPath) で再検証。範囲外なら 404 を返す。
