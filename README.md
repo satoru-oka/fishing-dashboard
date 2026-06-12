@@ -6,21 +6,21 @@ Kepler.gl 風の地理可視化と Superset 風の BI ダッシュボードを 1
 
 🌅 **ライブデモ**: <https://satoru-oka.github.io/fishing-dashboard/>
 
-`main` ブランチへの push で GitHub Actions が自動ビルド・デプロイします（`.github/workflows/deploy.yml`）。
+![Overview — 全体ビュー](docs/overview.png)
 
-## 起動
+ヘッダー直下に「アクティブフィルタ」ストリップ、5 枚の KPI カード、左に 3D マップ、右にフィルタパネル、下にタイムスライダーと 6 枚の Plotly チャートが並ぶ標準レイアウト。
 
-```bash
-npm install
-npm run dev
-```
+## 目次
 
-ブラウザで <http://localhost:5173> を開きます。
-
-> `data/catches_enriched.csv` がリポジトリ直下に置かれていることが前提です。
-> Vite の dev サーバーが `/data/*` を該当フォルダから配信します（ビルド時は `dist/data/` にコピー）。
->
-> `data/tokyo_bay_stations_geo.csv` は将来の拡張用のリファレンス（東京湾の観測所メタ）。現状アプリ本体は参照していませんが、`data/` 配下にあるため dev / build どちらでも配信対象になります。
+- [主な機能](#主な機能)
+- [スクリーンショット](#スクリーンショット)
+- [クイックスタート](#クイックスタート)
+- [技術スタック](#技術スタック)
+- [ファイル構成](#ファイル構成)
+- [デザイン](#デザイン)
+- [スクリプト](#スクリプト)
+- [デプロイ](#デプロイ)
+- [依存ライブラリのライセンス](#依存ライブラリのライセンス)
 
 ## 主な機能
 
@@ -41,6 +41,44 @@ npm run dev
   - 水温帯別 釣果（4°C ビニング）
   - 釣り場別 釣果＋平均体長（棒＋折れ線, デュアル軸）
 
+## スクリーンショット
+
+### 3D マップ詳細
+
+![Map — 3D カラムレイヤー](docs/map.png)
+
+deck.gl の `ColumnLayer` で 8 釣り場に立体カラム。高さ＝釣果数、色＝平均体長（コーラル→金）。左下に凡例、右下にマップスタイル切替（Demo / Dark / Voyager）。
+
+### フィルタ適用後（魚種＝クロダイ × 釣り場＝浦安総合公園）
+
+![Filtered — 絞り込み状態](docs/filtered.png)
+
+URL クエリ `?species=クロダイ&spots=浦安総合公園` をそのまま開いた状態。アクティブフィルタピルに条件が表示され、KPI（6 尾 / 1 釣行 / 平均 35.5 cm）、地図（浦安総合公園のみ点灯）、6 枚チャートすべてが連動して絞り込まれる。リンクを共有すれば同じビューを再現できる。
+
+## クイックスタート
+
+### 前提条件
+
+- Node.js（npm が使えること）
+- 外部のマップトークン（Mapbox 等）は**不要**です
+
+### データ
+
+アプリの起動には `data/catches_enriched.csv` がリポジトリ直下の `data/` に置かれていることが前提です。
+Vite の dev サーバーが `/data/*` を該当フォルダから配信します（ビルド時は `dist/data/` にコピー）。
+
+> `data/tokyo_bay_stations_geo.csv` は将来の拡張用のリファレンス（東京湾の観測所メタ）。
+> 現状アプリ本体は参照していませんが、`data/` 配下にあるため dev / build どちらでも配信対象になります。
+
+### 起動
+
+```bash
+npm install
+npm run dev
+```
+
+ブラウザで <http://localhost:5173> を開きます。
+
 ## 技術スタック
 
 | 層 | 採用 |
@@ -52,15 +90,6 @@ npm run dev
 | CSV | papaparse |
 | 日付 | date-fns |
 | 状態 | React Context + useReducer |
-
-外部のマップトークン（Mapbox 等）は不要です。
-
-## デザイン
-
-- コンセプト: **「夕焼けの東京湾」**
-- パレット: ダークネイビー基調にコーラル / ゴールド / アンバー
-- タイポ: Fraunces + Shippori Mincho B1（見出し）/ Noto Sans JP（本文）/ JetBrains Mono（数字）
-- モーション: マウント時のステージング・フェードイン、3D カラムの高さアニメーション、Plotly 300ms トランジション
 
 ## ファイル構成
 
@@ -95,25 +124,12 @@ fishing-dashboard/
 └── tsconfig*.json
 ```
 
-## スクリーンショット
+## デザイン
 
-### 全体ビュー（フィルタなし・全 166 件）
-
-![Overview — 全体ビュー](docs/overview.png)
-
-ヘッダー直下に「アクティブフィルタ」ストリップ、5 枚の KPI カード、左に 3D マップ、右にフィルタパネル、下にタイムスライダーと 6 枚の Plotly チャートが並ぶ標準レイアウト。
-
-### 3D マップ詳細
-
-![Map — 3D カラムレイヤー](docs/map.png)
-
-deck.gl の `ColumnLayer` で 8 釣り場に立体カラム。高さ＝釣果数、色＝平均体長（コーラル→金）。左下に凡例、右下にマップスタイル切替（Demo / Dark / Voyager）。
-
-### フィルタ適用後（魚種＝クロダイ × 釣り場＝浦安総合公園）
-
-![Filtered — 絞り込み状態](docs/filtered.png)
-
-URL クエリ `?species=クロダイ&spots=浦安総合公園` をそのまま開いた状態。アクティブフィルタピルに条件が表示され、KPI（6 尾 / 1 釣行 / 平均 35.5 cm）、地図（浦安総合公園のみ点灯）、6 枚チャートすべてが連動して絞り込まれる。リンクを共有すれば同じビューを再現できる。
+- コンセプト: **「夕焼けの東京湾」**
+- パレット: ダークネイビー基調にコーラル / ゴールド / アンバー
+- タイポ: Fraunces + Shippori Mincho B1（見出し）/ Noto Sans JP（本文）/ JetBrains Mono（数字）
+- モーション: マウント時のステージング・フェードイン、3D カラムの高さアニメーション、Plotly 300ms トランジション
 
 ## スクリプト
 
@@ -123,6 +139,11 @@ URL クエリ `?species=クロダイ&spots=浦安総合公園` をそのまま�
 | `npm run build` | 型チェック + 本番ビルド |
 | `npm run preview` | ビルド結果をローカル配信 |
 
-## ライセンス
+## デプロイ
+
+`main` ブランチへの push で GitHub Actions が自動ビルドし、GitHub Pages へデプロイします
+（ワークフロー定義: `.github/workflows/deploy.yml`）。
+
+## 依存ライブラリのライセンス
 
 deck.gl (MIT) / Plotly.js (MIT) / MapLibre GL (BSD-3) — いずれも商用利用可。
