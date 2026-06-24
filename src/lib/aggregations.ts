@@ -56,28 +56,51 @@ export function computeKpi(rows: Catch[]): Kpi {
   };
 }
 
-export function aggregateBySpot(rows: Catch[]): SpotAggregate[] {
-  const m = new Map<string, { lat: number; lng: number; count: number; lenSum: number; lenN: number; maxWeight: number }>();
-  for (const r of rows) {
-    const k = r.spot_name;
-    if (!k) continue;
-    const cur = m.get(k) ?? { lat: r.latitude, lng: r.longitude, count: 0, lenSum: 0, lenN: 0, maxWeight: 0 };
-    cur.count += r.count;
-    if (Number.isFinite(r.length_cm)) {
-      cur.lenSum += r.length_cm;
-      cur.lenN += 1;
-    }
-    if (Number.isFinite(r.weight_g) && r.weight_g > cur.maxWeight) cur.maxWeight = r.weight_g;
-    m.set(k, cur);
+/** Group rows by a derived key, preserving first-seen order of keys. */
+export function groupBy<T, K>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
+  const m = new Map<K, T[]>();
+  for (const item of items) {
+    const k = keyFn(item);
+    const arr = m.get(k);
+    if (arr) arr.push(item);
+    else m.set(k, [item]);
   }
-  return Array.from(m.entries()).map(([spot_name, v]) => ({
-    spot_name,
-    latitude: v.lat,
-    longitude: v.lng,
-    count: v.count,
-    avg_length: v.lenN ? v.lenSum / v.lenN : 0,
-    max_weight: v.maxWeight,
-  }));
+  return m;
+}
+
+/** Roll up a group of catches into the metrics shared across spot/species aggregations. */
+function summarize(rows: Catch[]): { count: number; avgLength: number; maxWeight: number } {
+  let count = 0;
+  let lenSum = 0;
+  let lenN = 0;
+  let maxWeight = 0;
+  for (const r of rows) {
+    count += r.count;
+    if (Number.isFinite(r.length_cm)) {
+      lenSum += r.length_cm;
+      lenN += 1;
+    }
+    if (Number.isFinite(r.weight_g) && r.weight_g > maxWeight) maxWeight = r.weight_g;
+  }
+  return { count, avgLength: lenN ? lenSum / lenN : 0, maxWeight };
+}
+
+export function aggregateBySpot(rows: Catch[]): SpotAggregate[] {
+  const groups = groupBy(
+    rows.filter((r) => r.spot_name),
+    (r) => r.spot_name,
+  );
+  return Array.from(groups.entries()).map(([spot_name, group]) => {
+    const s = summarize(group);
+    return {
+      spot_name,
+      latitude: group[0].latitude,
+      longitude: group[0].longitude,
+      count: s.count,
+      avg_length: s.avgLength,
+      max_weight: s.maxWeight,
+    };
+  });
 }
 
 export interface MonthlyStack {
@@ -117,10 +140,9 @@ export interface SpeciesCount {
 }
 
 export function topSpecies(rows: Catch[], topN = 10): SpeciesCount[] {
-  const m = new Map<string, number>();
-  for (const r of rows) m.set(r.species, (m.get(r.species) ?? 0) + r.count);
-  return Array.from(m.entries())
-    .map(([species, count]) => ({ species, count }))
+  const groups = groupBy(rows, (r) => r.species);
+  return Array.from(groups.entries())
+    .map(([species, group]) => ({ species, count: summarize(group).count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, topN);
 }
@@ -178,18 +200,12 @@ export interface SpotStat {
 }
 
 export function spotStats(rows: Catch[]): SpotStat[] {
-  const m = new Map<string, { count: number; lenSum: number; lenN: number }>();
-  for (const r of rows) {
-    const cur = m.get(r.spot_name) ?? { count: 0, lenSum: 0, lenN: 0 };
-    cur.count += r.count;
-    if (Number.isFinite(r.length_cm)) {
-      cur.lenSum += r.length_cm;
-      cur.lenN += 1;
-    }
-    m.set(r.spot_name, cur);
-  }
-  return Array.from(m.entries())
-    .map(([spot, v]) => ({ spot, count: v.count, avgLength: v.lenN ? v.lenSum / v.lenN : 0 }))
+  const groups = groupBy(rows, (r) => r.spot_name);
+  return Array.from(groups.entries())
+    .map(([spot, group]) => {
+      const s = summarize(group);
+      return { spot, count: s.count, avgLength: s.avgLength };
+    })
     .sort((a, b) => b.count - a.count);
 }
 
