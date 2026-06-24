@@ -9,17 +9,21 @@ export function MonthlyStackedChart({ delay = 0 }: { delay?: number }) {
   const { filtered } = useData();
   const data = useMemo(() => aggregateMonthlyBySpecies(filtered, 6), [filtered]);
 
-  const traces = data.species.map((sp, i) => ({
-    type: 'bar' as const,
-    name: sp,
-    x: data.months,
-    y: data.matrix[i],
-    marker: {
-      color: sp === 'その他' ? palette.skyDim : speciesPalette[i % speciesPalette.length],
-      line: { width: 0 },
-    },
-    hovertemplate: '%{x}<br>' + sp + ': <b>%{y}</b><extra></extra>',
-  }));
+  const traces = useMemo(
+    () =>
+      data.species.map((sp, i) => ({
+        type: 'bar' as const,
+        name: sp,
+        x: data.months,
+        y: data.matrix[i],
+        marker: {
+          color: sp === 'その他' ? palette.skyDim : speciesPalette[i % speciesPalette.length],
+          line: { width: 0 },
+        },
+        hovertemplate: '%{x}<br>' + sp + ': <b>%{y}</b><extra></extra>',
+      })),
+    [data],
+  );
 
   return (
     <ChartCard title="月別 × 魚種" subtitle="Monthly stacked by species (top 6)" delay={delay}>
