@@ -29,12 +29,28 @@ function dataFolderPlugin(): Plugin {
           return;
         }
         const filePath = path.resolve(dataDir, rel);
+        // Only CSV files are served from data/. Anything else → 404 (no path hints).
+        if (path.extname(filePath).toLowerCase() !== '.csv') {
+          res.statusCode = 404;
+          res.end('Not Found');
+          return;
+        }
+        // Reject paths that resolve outside data/ — return 404 to avoid leaking
+        // whether a sibling path exists (no 403 "Forbidden" probing hints).
         if (!isInsideDir(dataDir, filePath)) {
-          res.statusCode = 403;
-          res.end('Forbidden');
+          res.statusCode = 404;
+          res.end('Not Found');
           return;
         }
         if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+          res.statusCode = 404;
+          res.end('Not Found');
+          return;
+        }
+        // Re-check after resolving symlinks: a symlink inside data/ could point
+        // outside it, bypassing the lexical isInsideDir check above.
+        const realPath = fs.realpathSync(filePath);
+        if (!isInsideDir(dataDir, realPath)) {
           res.statusCode = 404;
           res.end('Not Found');
           return;
@@ -107,8 +123,5 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-    fs: {
-      allow: ['..'],
-    },
   },
 });
