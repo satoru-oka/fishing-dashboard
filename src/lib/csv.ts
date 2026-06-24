@@ -45,12 +45,14 @@ function rowFromRecord(r: Record<string, string>): Catch | null {
   const caughtRaw = str(r['caught_at']);
   const caughtAt = new Date(caughtRaw);
   if (Number.isNaN(caughtAt.getTime())) return null;
+  // Keep an explicit count=0 (was previously coerced to 1 by `|| 1`). #55
+  const c = num(r['count']);
   return {
     catch_id: str(r['catch_id']),
     trip_id: str(r['trip_id']),
     caught_at: caughtAt,
     species: str(r['species']),
-    count: num(r['count']) || 1,
+    count: Number.isFinite(c) ? c : 1,
     length_cm: num(r['length_cm']),
     weight_g: num(r['weight_g']),
     depth_m: num(r['depth_m']),
