@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { format } from 'date-fns';
 import Plot from './Plot';
 import { useData } from '../../context/DataContext';
 import { axisTitle, baseConfig, baseLayout, palette, speciesPalette } from '../../theme';
@@ -14,7 +15,7 @@ export function ScatterChart({ delay = 0 }: { delay?: number }) {
       const t = bySpecies.get(r.species) ?? { x: [], y: [], text: [] };
       t.x.push(r.length_cm);
       t.y.push(r.weight_g);
-      t.text.push(`${r.spot_name} · ${r.caught_at.toISOString().slice(0, 10)}`);
+      t.text.push(`${r.spot_name} · ${format(r.caught_at, 'yyyy-MM-dd')}`);
       bySpecies.set(r.species, t);
     }
     // Sort by sample count desc so legend reads top-down most common

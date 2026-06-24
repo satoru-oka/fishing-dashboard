@@ -45,9 +45,8 @@ describe('parseCsvText', () => {
     expect(rows.map((r) => r.count)).toEqual([1, 1]);
   });
 
-  // Known bug #55: count=0 is coerced to 1 by `num(...) || 1`. This documents the
-  // CORRECT expected behaviour and is marked failing until #55 is fixed.
-  it.fails('preserves count=0 instead of coercing it to 1 (#55)', () => {
+  // #55: count=0 must be preserved, not coerced to 1 (previously `num(...) || 1`).
+  it('preserves count=0 instead of coercing it to 1 (#55)', () => {
     const text = `${HEADER}\nc1,t1,2024-01-15T09:00:00,A,0,no\n`;
     const { rows } = parseCsvText(text);
     expect(rows[0].count).toBe(0);
