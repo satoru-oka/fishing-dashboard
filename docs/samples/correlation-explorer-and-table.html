@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>相関エクスプローラ＋ソート表（別モード・サンプル）</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root{
+    --bg-deep:#060d1c;--bg:#0a1428;--card:#0f1d33;--card2:#142544;--border:#21385c;
+    --foam:#f1efe4;--foam-dim:#dcd9c9;--sky:#a8c6d6;--sky-dim:#92acbd;
+    --sun:#f4a261;--coral:#e76f51;--gold:#e9c46a;--algae:#8db38b;
+    --font-serif:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",Georgia,serif;
+    --font-sans:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    --font-mono:ui-monospace,"SFMono-Regular",Menlo,monospace;
+  }
+  *{box-sizing:border-box}html,body{margin:0}
+  body{background:radial-gradient(1200px 600px at 70% -10%,#102544 0%,var(--bg) 45%,var(--bg-deep) 100%);
+    color:var(--foam);font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:14px;min-height:100vh}
+  .wrap{max-width:1320px;margin:0 auto}
+  .eyebrow{font-family:var(--font-serif);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--sky-dim)}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:14px 16px;position:relative}
+  .panel h2{margin:1px 0 0;font-family:var(--font-serif);font-size:20px;font-weight:600;color:var(--foam)}
+  .panel h3{margin:0 0 2px;font-family:var(--font-serif);font-size:13px;font-weight:600;color:var(--foam)}
+  .badge{position:absolute;top:16px;right:16px;border:1px solid var(--algae);background:rgba(141,179,139,.12);
+    color:var(--algae);border-radius:13px;padding:4px 12px;font-size:11px}
+  .badge.warn{border-color:var(--coral);background:rgba(231,111,81,.12);color:var(--coral)}
+  .modeSeg{display:inline-flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-top:10px}
+  .modeSeg button{border:0;background:transparent;color:var(--foam-dim);padding:6px 14px;font-size:11px;font-family:var(--font-serif);letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
+  .modeSeg button.on{background:var(--sun);color:var(--bg-deep);font-weight:700}
+
+  .ex{display:grid;grid-template-columns:210px 1fr 320px;gap:12px;margin-top:12px}
+  @media(max-width:980px){.ex{grid-template-columns:1fr}}
+  .ctl{margin-bottom:12px}
+  .ctl .lbl{font-family:var(--font-serif);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--sky-dim);margin-bottom:5px}
+  select{width:100%;background:var(--card2);color:var(--foam);border:1px solid var(--border);border-radius:4px;padding:7px 8px;font-size:12px;font-family:var(--font-sans)}
+  .hint{font-size:10.5px;color:var(--sky-dim)}
+  .stat{background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:10px 12px;margin-top:8px;font-family:var(--font-mono);font-size:12px;color:var(--foam)}
+  .stat .big{font-size:20px;color:var(--gold);font-family:var(--font-serif)}
+  .chip{display:inline-block;border:1px solid var(--border);border-radius:11px;padding:2px 10px;font-size:11px;margin-top:6px}
+  .chip.s{color:var(--algae);border-color:var(--algae)} .chip.m{color:var(--sun);border-color:var(--sun)} .chip.w{color:var(--sky);border-color:var(--sky)}
+  .promote{margin-top:10px;width:100%;border:1px solid var(--sun);background:rgba(244,162,97,.12);color:var(--sun);border-radius:4px;padding:8px;font-size:12px;cursor:pointer;font-family:var(--font-serif);letter-spacing:.08em}
+  .note{margin-top:12px;font-size:10.5px;color:var(--sky-dim);border-top:1px solid var(--border);padding-top:10px}
+  .gate{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.85);border-radius:4px;text-align:center}
+  .gate b{display:block;font-family:var(--font-serif);color:var(--foam-dim)}.gate span{font-size:11px;color:var(--sky-dim)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--card2);border:1px solid var(--sun);
+    color:var(--foam);border-radius:6px;padding:10px 16px;font-size:12px;opacity:0;transition:opacity .25s;z-index:50}
+  .toast.on{opacity:1}
+
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--border)}
+  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+  th{font-family:var(--font-serif);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--sky-dim);cursor:pointer;user-select:none;white-space:nowrap}
+  th.sorted{color:var(--sun)} th .ar{font-size:9px;margin-left:3px}
+  tbody tr:hover{background:rgba(135,168,184,.06)}
+  td.num{font-family:var(--font-mono);color:var(--foam-dim)}
+  .mode-pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:10px}
+  .m-海{background:rgba(30,58,138,.5);color:#9db8ff}.m-汽水{background:rgba(14,165,233,.25);color:#7fd3ff}.m-淡水{background:rgba(22,163,74,.3);color:#9be3b0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== A. 相関エクスプローラ ===== -->
+  <div class="panel">
+    <div class="eyebrow">探索モード / Exploratory</div>
+    <h2>相関エクスプローラ</h2>
+    <div class="hint" style="margin-top:2px">仮説づくり用。確認は別途・シーズンをまたいで再確認する。</div>
+    <div id="suff" class="badge">サンプル: –</div>
+    <div class="modeSeg" id="modeSeg">
+      <button data-mode="全" class="on">全</button><button data-mode="海">海</button>
+      <button data-mode="汽水">汽水</button><button data-mode="淡水">淡水</button>
+    </div>
+
+    <div class="ex">
+      <!-- 左：軸と層別 -->
+      <div>
+        <div class="ctl"><div class="lbl">X軸</div><select id="xSel"></select></div>
+        <div class="ctl"><div class="lbl">Y軸</div><select id="ySel"></select></div>
+        <div class="ctl"><div class="lbl">手法（自動）</div><div class="hint" id="method">Pearson（線形）</div></div>
+        <div class="ctl"><div class="lbl">層別（色分け）</div>
+          <select id="stratSel"><option value="">なし</option><option value="season">季節</option><option value="spot">釣場</option></select>
+        </div>
+        <div class="ctl"><div class="lbl">最低サンプル</div><div class="hint">ペア n ≥ 12（未満は判断保留）</div></div>
+        <button class="promote" id="promote">▲ この軸をパネルに昇格</button>
+        <div class="hint" style="margin-top:6px">昇格は手動判断（自動化しない）</div>
+      </div>
+      <!-- 中央：散布図＋効果量 -->
+      <div class="panel" id="scatterPanel" style="padding:10px">
+        <h3 id="scTitle">散布図</h3>
+        <div id="scatter" style="width:100%;height:300px"></div>
+        <div class="stat" id="stat"></div>
+      </div>
+      <!-- 右：総当たりヒートマップ -->
+      <div class="panel" style="padding:10px">
+        <h3>総当たり相関</h3>
+        <div class="hint">r の総当たり（仮説づくり用・鵜呑みにしない）</div>
+        <div id="heat" style="width:100%;height:300px"></div>
+        <div class="hint">青=負 / 暗=0 / 金=正。n&lt;12 は空欄。</div>
+      </div>
+    </div>
+    <div class="note">※ 実機では FDR 補正・偏相関（層別）・型別手法（点双列／Cramér's V 等）をサーバ側（FastAPI）で算出し、ここは可視化に専念。効果量と区間を主、p値を従。</div>
+  </div>
+
+  <!-- ===== B. ソート可能な表（釣場別） ===== -->
+  <div class="panel" style="margin-top:12px">
+    <div class="eyebrow">Sortable Table</div>
+    <h2>釣場別サマリ</h2>
+    <div class="hint" style="margin-top:2px">列見出しをクリックで並べ替え。釣果×平均体長の精読はこの表で（地図の立体棒と同じ指標のソート可能版）。</div>
+    <table id="tbl"><thead></thead><tbody></tbody></table>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== モックデータ（ダッシュボードと同一） ===== */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=mulberry32(20260627);const pick=a=>a[Math.floor(rnd()*a.length)];
+const gauss=(m,s)=>{let u=rnd(),v=rnd();return m+s*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const SPOTS=[
+  {name:'多摩川 河口',mode:'汽水'},{name:'多摩川 中流',mode:'淡水'},{name:'運河エリア',mode:'汽水'},
+  {name:'湾奥 堤防',mode:'海'},{name:'港湾 外向き',mode:'海'},{name:'上流 瀬',mode:'淡水'},
+];
+const SPOT_W=[0.30,0.18,0.16,0.16,0.10,0.10];
+const SPECIES={'海':['シーバス','クロダイ','マゴチ','カサゴ','タチウオ'],'汽水':['シーバス','クロダイ','マゴチ','セイゴ'],'淡水':['スモールマウスバス','ナマズ','ニゴイ','ラージマウスバス']};
+const SIZE_MEAN={'シーバス':52,'セイゴ':32,'クロダイ':38,'マゴチ':45,'カサゴ':24,'タチウオ':70,'スモールマウスバス':33,'ラージマウスバス':38,'ナマズ':55,'ニゴイ':40};
+const PHASES=['上げ3分','上げ7分','満潮','下げ3分','下げ7分','干潮'];
+function weightedSpot(){let r=rnd(),a=0;for(let i=0;i<SPOTS.length;i++){a+=SPOT_W[i];if(r<=a)return SPOTS[i]}return SPOTS[0]}
+function seasonOf(m){if(m>=2&&m<=4)return'春';if(m>=5&&m<=7)return'夏';if(m>=8&&m<=10)return'秋';return'冬'}
+const SESSIONS=[];const START=new Date(2025,6,1),N=92;
+for(let i=0;i<N;i++){
+  const date=new Date(START.getTime()+(Math.floor(i/N*360)+Math.floor(rnd()*4))*86400000);
+  const month=date.getMonth(),season=seasonOf(month),spot=weightedSpot(),mode=spot.mode;
+  const baseTemp=16+9*Math.sin((month-3)/12*2*Math.PI);const waterTemp=Math.max(5,Math.min(29,gauss(baseTemp,1.6)));
+  const rain=rnd()<0.22,waterLevel=Math.max(0.2,gauss(rain?1.7:1.0,rain?0.4:0.2));
+  const turbidity=waterLevel>1.5?pick(['濁り','濁り','ささ濁り']):waterLevel>1.15?pick(['ささ濁り','クリア']):pick(['クリア','クリア','ささ濁り']);
+  const timeOfDay=pick(['夕マズメ','夜','夜','朝マズメ','日中','夕マズメ']);const phase=pick(PHASES);
+  const seasonF=season==='春'?1.25:season==='秋'?1.4:season==='夏'?0.95:0.55;
+  const timeF=timeOfDay==='夕マズメ'?1.5:timeOfDay==='夜'?1.3:timeOfDay==='朝マズメ'?1.1:0.6;
+  const turbidF=mode!=='淡水'?(turbidity==='濁り'?1.4:turbidity==='ささ濁り'?1.15:0.9):1.0;
+  const tideF=mode!=='淡水'?((phase==='上げ7分'||phase==='下げ7分')?1.3:(phase==='満潮'||phase==='干潮')?0.7:1.0):1.0;
+  const tempF=(waterTemp>=12&&waterTemp<=22)?1.2:(waterTemp<8||waterTemp>26)?0.5:0.9;
+  let count=Math.max(0,Math.round(gauss(1.5*seasonF*timeF*turbidF*tideF*tempF,0.9)));if(rnd()<0.10)count=0;
+  const catches=[];for(let c=0;c<count;c++){const sp=(rnd()<0.55&&SPECIES[mode].includes('シーバス'))?'シーバス':pick(SPECIES[mode]);
+    catches.push({species:sp,size:Math.max(12,Math.round(gauss(SIZE_MEAN[sp]||40,(SIZE_MEAN[sp]||40)*0.18)))})}
+  SESSIONS.push({date,month,season,mode,spot,waterTemp,waterLevel,turbidity,timeOfDay,phase,catches});
+}
+
+/* ===== 共通 ===== */
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let M='全';
+const sessOf=()=>SESSIONS.filter(s=>M==='全'||s.mode===M);
+const baseLayout=e=>Object.assign({paper_bgcolor:'transparent',plot_bgcolor:'transparent',
+  font:{family:'"Noto Sans JP",sans-serif',color:css('--foam-dim'),size:10},margin:{l:46,r:12,t:8,b:38}},e);
+const ax=t=>({title:{text:t,font:{size:11,color:css('--sky')}},gridcolor:'rgba(135,168,184,0.10)',
+  zerolinecolor:'rgba(135,168,184,0.15)',linecolor:css('--border'),tickcolor:css('--border'),tickfont:{size:9,color:css('--foam-dim')},automargin:true});
+const CFG={responsive:true,displayModeBar:false};
+const MIN=12;
+
+/* 変数定義（数値・順序尺度）。avg体長は0尾セッションでnull */
+const VARS={
+  '釣果数':{f:s=>s.catches.length},
+  '平均体長':{f:s=>{const c=s.catches;return c.length?c.reduce((a,x)=>a+x.size,0)/c.length:null}},
+  '水温':{f:s=>s.waterTemp},
+  '水位':{f:s=>s.waterLevel},
+  '濁り':{f:s=>({'クリア':0,'ささ濁り':1,'濁り':2})[s.turbidity],ord:true},
+  '潮動き':{f:s=>({'上げ7分':2,'下げ7分':2,'上げ3分':1,'下げ3分':1,'満潮':0,'干潮':0})[s.phase],ord:true},
+};
+const VKEYS=Object.keys(VARS);
+
+function pairs(sessions,xk,yk){const xs=[],ys=[],meta=[];
+  sessions.forEach(s=>{const x=VARS[xk].f(s),y=VARS[yk].f(s);
+    if(x==null||y==null||Number.isNaN(x)||Number.isNaN(y))return;xs.push(x);ys.push(y);meta.push(s)});return{xs,ys,meta}}
+function pearson(xs,ys){const n=xs.length;if(n<3)return null;let mx=0,my=0;
+  for(let i=0;i<n;i++){mx+=xs[i];my+=ys[i]}mx/=n;my/=n;let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){const dx=xs[i]-mx,dy=ys[i]-my;sxy+=dx*dy;sxx+=dx*dx;syy+=dy*dy}
+  if(sxx===0||syy===0)return 0;return sxy/Math.sqrt(sxx*syy)}
+function fisherCI(r,n){if(n<4)return null;const z=0.5*Math.log((1+r)/(1-r)),se=1/Math.sqrt(n-3);
+  return[Math.tanh(z-1.96*se),Math.tanh(z+1.96*se)]}
+function fit(xs,ys){const n=xs.length;let mx=0,my=0;for(let i=0;i<n;i++){mx+=xs[i];my+=ys[i]}mx/=n;my/=n;
+  let sxy=0,sxx=0;for(let i=0;i<n;i++){sxy+=(xs[i]-mx)*(ys[i]-my);sxx+=(xs[i]-mx)**2}const b=sxx?sxy/sxx:0;return{b,a:my-b*mx}}
+const STRATA={season:s=>s.season,spot:s=>s.spot.name};
+const STRAT_COLORS=['#e76f51','#f4a261','#e9c46a','#8db38b','#87a8b8','#b07ba0','#caa66b'];
+
+function drawScatter(){
+  const xk=document.getElementById('xSel').value,yk=document.getElementById('ySel').value;
+  const strat=document.getElementById('stratSel').value;
+  document.getElementById('scTitle').textContent=`${yk} × ${xk}`;
+  const method=(VARS[xk].ord||VARS[yk].ord)?'Spearman/順位相関の対象（サンプルはPearson近似）':'Pearson（線形）';
+  document.getElementById('method').textContent=method;
+  const {xs,ys,meta}=pairs(sessOf(),xk,yk);const n=xs.length;
+  // ジッター（順序尺度を見やすく）
+  const jit=v=>v+(Math.random()-0.5)*0.16;
+  const traces=[];
+  if(strat){const groups={};meta.forEach((s,i)=>{const g=STRATA[strat](s);(groups[g]=groups[g]||{x:[],y:[]});
+      groups[g].x.push(VARS[xk].ord?jit(xs[i]):xs[i]);groups[g].y.push(VARS[yk].ord?jit(ys[i]):ys[i])});
+    Object.keys(groups).forEach((g,gi)=>traces.push({type:'scatter',mode:'markers',name:g,x:groups[g].x,y:groups[g].y,
+      marker:{size:6,color:STRAT_COLORS[gi%STRAT_COLORS.length],opacity:.8}}));
+  }else{
+    traces.push({type:'scatter',mode:'markers',name:'釣行',showlegend:false,
+      x:xs.map(v=>VARS[xk].ord?jit(v):v),y:ys.map(v=>VARS[yk].ord?jit(v):v),
+      marker:{size:6,color:css('--sun'),opacity:.65}});
+  }
+  if(n>=3){const{a,b}=fit(xs,ys);const xmin=Math.min(...xs),xmax=Math.max(...xs);
+    traces.push({type:'scatter',mode:'lines',name:'回帰',showlegend:false,x:[xmin,xmax],y:[a+b*xmin,a+b*xmax],line:{color:css('--gold'),width:2,dash:'dot'}});}
+  Plotly.react('scatter',traces,baseLayout({margin:{l:46,r:12,t:8,b:38},showlegend:!!strat,
+    legend:{font:{size:9,color:css('--foam')},orientation:'h',y:1.14},xaxis:ax('X軸 ・ '+xk),yaxis:ax('Y軸 ・ '+yk)}),CFG);
+  // 効果量
+  const r=n>=3?pearson(xs,ys):null;const ci=r!=null?fisherCI(r,n):null;
+  const el=document.getElementById('stat');
+  const gate=document.getElementById('scatterPanel').querySelector('.gate');if(gate)gate.remove();
+  if(n<MIN){const d=document.createElement('div');d.className='gate';
+    d.innerHTML=`<div><b>判断保留</b><span>ペア n=${n}（必要 ${MIN}）</span></div>`;document.getElementById('scatterPanel').appendChild(d);}
+  if(r==null){el.innerHTML='データ不足';}
+  else{const ar=Math.abs(r);const cls=ar>=0.5?'m':ar>=0.3?'w':'w';const lab=ar>=0.5?'中〜強':ar>=0.3?'弱〜中':'弱/なし';
+    el.innerHTML=`効果量 r = <span class="big">${r.toFixed(2)}</span>　`+
+      (ci?`[95%CI ${ci[0].toFixed(2)}–${ci[1].toFixed(2)}]　`:'')+`n = ${n}`+
+      `<br><span class="chip ${cls}">判定: ${lab}</span> <span class="hint">※ p値でなく効果量と区間で判断</span>`;}
+  // 充足バッジ
+  const b=document.getElementById('suff');b.textContent=`サンプル: ${sessOf().length} 釣行`;
+  b.className='badge'+(sessOf().length<24?' warn':'');
+}
+
+function drawHeat(){
+  const z=[],txt=[];
+  for(let i=0;i<VKEYS.length;i++){z.push([]);txt.push([]);
+    for(let j=0;j<VKEYS.length;j++){
+      if(i===j){z[i].push(1);txt[i].push('1.00');continue;}
+      const {xs,ys}=pairs(sessOf(),VKEYS[j],VKEYS[i]);
+      if(xs.length<MIN){z[i].push(null);txt[i].push('');}
+      else{const r=pearson(xs,ys);z[i].push(r);txt[i].push(r.toFixed(2));}
+    }}
+  const ann=[];
+  for(let i=0;i<VKEYS.length;i++)for(let j=0;j<VKEYS.length;j++){const v=z[i][j];if(v==null||txt[i][j]==='')continue;
+    ann.push({x:VKEYS[j],y:VKEYS[i],text:txt[i][j],showarrow:false,font:{size:9.5,color:(v>0.45?'#0a1428':'#f1efe4')}});}
+  Plotly.react('heat',[{type:'heatmap',z,x:VKEYS,y:VKEYS,zmin:-1,zmax:1,
+    colorscale:[[0,'#5a86c0'],[0.5,'#101d33'],[1,'#e9c46a']],showscale:false,
+    hovertemplate:'%{y} × %{x}<br>r=%{z:.2f}<extra></extra>',xgap:2,ygap:2}],
+    baseLayout({margin:{l:64,r:8,t:6,b:64},annotations:ann,xaxis:{tickangle:-40,tickfont:{size:9,color:css('--foam-dim')}},yaxis:{tickfont:{size:9,color:css('--foam-dim')},autorange:'reversed'}}),CFG);
+}
+
+/* ===== ソート可能な表 ===== */
+let sortKey='count',sortDir=-1;
+function spotRows(){const by={};SPOTS.forEach(s=>by[s.name]={spot:s.name,mode:s.mode,sessions:0,count:0,sum:0,max:0});
+  sessOf().forEach(s=>{const o=by[s.spot.name];o.sessions++;s.catches.forEach(c=>{o.count++;o.sum+=c.size;o.max=Math.max(o.max,c.size)})});
+  return Object.values(by).map(o=>({spot:o.spot,mode:o.mode,sessions:o.sessions,count:o.count,
+    rate:o.sessions?o.count/o.sessions:0,avg:o.count?o.sum/o.count:0,max:o.max}))}
+const COLS=[
+  {k:'spot',t:'釣場',num:false},{k:'mode',t:'モード',num:false},{k:'sessions',t:'釣行',fmt:v=>v},
+  {k:'count',t:'総釣果',fmt:v=>v},{k:'rate',t:'尾/釣行',fmt:v=>v.toFixed(1)},
+  {k:'avg',t:'平均体長',fmt:v=>v?v.toFixed(1):'–'},{k:'max',t:'最大',fmt:v=>v||'–'}];
+function drawTable(){
+  const rows=spotRows().sort((a,b)=>{const x=a[sortKey],y=b[sortKey];
+    if(typeof x==='string')return sortDir*x.localeCompare(y,'ja');return sortDir*(x-y)});
+  const thead=document.querySelector('#tbl thead');
+  thead.innerHTML='<tr>'+COLS.map(c=>{const on=c.k===sortKey;
+    return `<th data-k="${c.k}" class="${on?'sorted':''}">${c.t}${on?`<span class="ar">${sortDir<0?'▼':'▲'}</span>`:''}</th>`}).join('')+'</tr>';
+  thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
+    if(k===sortKey)sortDir*=-1;else{sortKey=k;sortDir=(k==='spot'||k==='mode')?1:-1}drawTable()});
+  const tb=document.querySelector('#tbl tbody');
+  tb.innerHTML=rows.map(r=>'<tr>'+COLS.map(c=>{
+    if(c.k==='spot')return `<td>${r.spot}</td>`;
+    if(c.k==='mode')return `<td><span class="mode-pill m-${r.mode}">${r.mode}</span></td>`;
+    return `<td class="num">${c.fmt(r[c.k])}</td>`}).join('')+'</tr>').join('');
+}
+
+/* ===== 配線 ===== */
+function buildSelects(){const xs=document.getElementById('xSel'),ys=document.getElementById('ySel');
+  VKEYS.forEach(k=>{xs.add(new Option(k,k));ys.add(new Option(k,k))});xs.value='水温';ys.value='釣果数';}
+function renderAll(){drawScatter();drawHeat();drawTable();}
+document.getElementById('modeSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;M=b.dataset.mode;
+  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));renderAll()};
+['xSel','ySel','stratSel'].forEach(id=>document.getElementById(id).onchange=drawScatter);
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
+document.getElementById('promote').onclick=()=>toast('（サンプルでは無効）実機では変数レジストリの状態を experimental → promoted にして、パネル/フィルタに昇格します。');
+window.addEventListener('load',()=>{buildSelects();renderAll()});
+</script>
+</body>
+</html>
