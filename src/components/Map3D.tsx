@@ -46,19 +46,14 @@ export function Map3D({ onPickLocation }: Map3DProps = {}) {
   const { filtered, filter, setSpots } = useData();
   const [styleKey, setStyleKey] = useState<StyleKey>('Dark');
   const [hover, setHover] = useState<TooltipState | null>(null);
-  const [elevAnim, setElevAnim] = useState(0); // 0..1 grows on mount
+  const [mounted, setMounted] = useState(false); // flips once to trigger the grow-in
   const aggregates = useMemo(() => aggregateBySpot(filtered), [filtered]);
 
-  // grow on mount
+  // Grow the columns on mount. The first paint renders at elevationScale 0; flipping
+  // `mounted` on the next frame moves it to full, and deck.gl's built-in transition
+  // interpolates the height. One rAF, not a per-frame setState loop.
   useEffect(() => {
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / 900);
-      setElevAnim(t);
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    const raf = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(raf);
   }, []);
 
@@ -76,7 +71,7 @@ export function Map3D({ onPickLocation }: Map3DProps = {}) {
     return [mn, mx] as [number, number];
   }, [aggregates]);
 
-  const elevationScale = 200 * elevAnim;
+  const elevationScale = mounted ? 200 : 0;
 
   const layers = useMemo(
     () => [
@@ -88,6 +83,10 @@ export function Map3D({ onPickLocation }: Map3DProps = {}) {
         extruded: true,
         pickable: true,
         elevationScale,
+        // deck.gl interpolates elevationScale changes — drives the mount grow-in
+        transitions: {
+          elevationScale: { type: 'interpolation', duration: 900 },
+        },
         getPosition: (d) => [d.longitude, d.latitude],
         getElevation: (d) => d.count,
         getFillColor: (d) => {
