@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { useData } from '../context/DataContext';
 
@@ -41,17 +41,22 @@ export function TimeSlider() {
     [filter.dateRange, months],
   );
 
-  const applyIndices = (sIdx: number, eIdx: number) => {
-    if (total === 0) return;
-    const clampedStart = Math.max(0, Math.min(sIdx, total - 1));
-    const clampedEnd = Math.max(clampedStart, Math.min(eIdx, total - 1));
-    const isFull = clampedStart === 0 && clampedEnd === total - 1;
-    if (isFull) {
-      setDateRange(null);
-    } else {
-      setDateRange([months[clampedStart], endOfMonth(months[clampedEnd])]);
-    }
-  };
+  // Memoized so the playback interval below can list it as a dependency without
+  // resetting on every render. Its identity only changes when months/total change.
+  const applyIndices = useCallback(
+    (sIdx: number, eIdx: number) => {
+      if (total === 0) return;
+      const clampedStart = Math.max(0, Math.min(sIdx, total - 1));
+      const clampedEnd = Math.max(clampedStart, Math.min(eIdx, total - 1));
+      const isFull = clampedStart === 0 && clampedEnd === total - 1;
+      if (isFull) {
+        setDateRange(null);
+      } else {
+        setDateRange([months[clampedStart], endOfMonth(months[clampedEnd])]);
+      }
+    },
+    [months, total, setDateRange],
+  );
 
   const [playing, setPlaying] = useState(false);
   const latestRef = useRef<[number, number]>([startIdx, endIdx]);
@@ -70,9 +75,7 @@ export function TimeSlider() {
       applyIndices(s + 1, e + 1);
     }, 500);
     return () => window.clearInterval(id);
-    // applyIndices closes over months/total only; both move together with deps below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, total]);
+  }, [playing, total, applyIndices]);
 
   const togglePlay = () => {
     if (total <= 1) return;
