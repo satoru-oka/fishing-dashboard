@@ -47,9 +47,11 @@
 - いずれもモックデータの単一HTML（deck.gl/Plotly を CDN 読み込み）。設計確認用で、本番は Vite/React SPA。
 
 ## 8. 今後
+- 各パネルのデータ契約（#65 E）→ `docs/deep-dive-data-contract.md`（**定義済み**。catch-management `#72` の実装契約）。
 - 統計のサーバ側実装（FDR 補正・偏相関・型別手法＝点双列/Cramér's V 等）。
-- 実データ（Supabase）への配線。
+- 実データ（Supabase）への配線（#65 F、catch-management `#68`→`#72` 依存）。
 - 変数レジストリ UI と昇格フローの実装。
 
 ## 関連
 - issue #65（本画面）、#40（裏側の縫い目）、`docs/design-references.md`（根拠・統計の作法・参考文献）。
+- データ契約: `docs/deep-dive-data-contract.md`（#65 E）。
