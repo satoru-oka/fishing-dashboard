@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # GitHub Actions: SHA 固定したアクションの更新を週次で追従する
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # npm 依存（dev/prod 両方）を週次で更新
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
