@@ -22,7 +22,12 @@
 - `docs/samples/` … モックデータの単一HTMLプロトタイプ（現状の到達点を実際に触れる）
 
 ## 進行中
-- **深掘り分析ダッシュボード（issue #65）**。設計＋プロトタイプ v1→v7 まで合意済み。仕様は `docs/deep-dive-dashboard-spec.md`。
+- **深掘り分析ダッシュボード（issue #65）**。設計確定（`docs/deep-dive-dashboard-spec.md`）。現在地：
+  - **A〜D 設計判断＝確定**（C: ⑤環境セレクタ＝海/汽水{潮位フェーズ,水温帯}・淡水{水温帯,水位帯}／D: 既定=公開ビュー、個人(JWT)は Header 右上のグローバルトグル）。
+  - **フェーズ1 足場固め（#64＝レビュー指摘 #48〜#63）＝全件完了**（vitest・vite.config セキュリティ・集計リファクタ・Map3D・TimeSlider・vite8）。
+  - **E データ契約＝定義済み** → `docs/deep-dive-data-contract.md`（catch-management `#72` の実装契約）。
+  - **次の前提＝フェーズ2（catch-management 側）**：`#68`（時刻方針/JST）→ `#72`（サーバ集計、契約準拠）→ `#66`（RLS/`public_catches`）。これが済んで初めて **#65 F（配線：DataContext の源を CSV→契約エンドポイントへ）** に着手できる。
+  - 全体ロードマップ：#66。fishing-dashboard 側の backend 非依存タスクは現状出尽くし。
 - **#40**：海/淡水デュアル、公開/個人ビュー、相関分析は「将来の縫い目」（jsonb 実験層＋変数レジストリ＋analytics ビュー、統計はサーバ側、ダッシュボードは可視化のみ）。
 
 ## 作法（重要）
