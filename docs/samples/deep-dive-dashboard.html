@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>釣果ダッシュボード（深掘り）</title>
+<script src="https://unpkg.com/deck.gl@8.9.35/dist.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root{
+    --bg-deep:#060d1c; --bg:#0a1428; --card:#0f1d33; --card2:#142544; --border:#21385c;
+    --foam:#f1efe4; --foam-dim:#dcd9c9; --sky:#a8c6d6; --sky-dim:#92acbd;
+    --sun:#f4a261; --coral:#e76f51; --gold:#edcc78; --algae:#9cc39a;
+    --font-serif:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",Georgia,serif;
+    --font-sans:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    --font-mono:ui-monospace,"SFMono-Regular",Menlo,monospace;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:radial-gradient(1200px 600px at 70% -10%, #102544 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    color:var(--foam);font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:14px;min-height:100vh}
+  .wrap{max-width:1360px;margin:0 auto}
+  .eyebrow{font-family:var(--font-serif);font-size:10px;letter-spacing:.3em;color:var(--sky);font-weight:600}
+  header{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:14px 16px;margin-bottom:12px}
+  .title{font-family:var(--font-serif);font-size:22px;font-weight:600;color:var(--foam);line-height:1.1}
+  .title .sub{display:block;font-family:var(--font-sans);font-size:11px;color:var(--foam-dim);margin-top:3px}
+  #kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;line-height:1.15}
+  .kpi b{font-family:var(--font-serif);font-size:24px;font-weight:600;color:var(--foam)}
+  .kpi b.sun{color:var(--sun)} .kpi b.gold{color:var(--gold)} .kpi b.coral{color:var(--coral)}
+  .kpi span{font-size:10px;color:var(--sky-dim);letter-spacing:.08em;margin-top:3px}
+  .maprow{display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:12px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:12px;min-width:0;position:relative}
+  .panel h3{margin:0 0 1px;font-family:var(--font-serif);font-size:14px;font-weight:600;color:var(--foam)}
+  .panel .desc{margin:0 0 8px;font-size:10.5px;color:var(--sky-dim)}
+  #map{position:relative;width:100%;height:520px;border-radius:4px;overflow:hidden;background:#08111f;border:1px solid var(--border)}
+  .filters .fgroup{margin-top:12px}
+  .filters .flabel{font-family:var(--font-serif);font-size:10px;letter-spacing:.18em;color:var(--sky);margin-bottom:5px;font-weight:600}
+  .seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--border);border-radius:4px;overflow:hidden}
+  .seg button{border:0;background:transparent;color:var(--foam-dim);padding:6px 14px;font-size:11px;font-family:var(--font-serif);letter-spacing:.15em;cursor:pointer}
+  .seg button.on{background:var(--sun);color:var(--bg-deep);font-weight:700}
+  .chipgroup{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid var(--border);background:var(--card2);color:var(--foam-dim);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;user-select:none}
+  .chip.on{background:var(--sun);border-color:var(--sun);color:var(--bg-deep);font-weight:700}
+  .cap{font-size:10px;color:var(--sky-dim);margin-top:5px}
+  .reset{margin-top:16px;width:100%;border:1px solid var(--border);background:var(--card2);color:var(--foam-dim);border-radius:4px;padding:8px 12px;font-size:11px;cursor:pointer}
+  .reset:hover{color:var(--foam)}
+  /* 期間スライダー（全幅） */
+  .tspanel{margin-bottom:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .tspanel .lbl{font-family:var(--font-serif);font-size:10px;letter-spacing:.18em;color:var(--sky)}
+  .tsval{font-family:var(--font-mono);font-size:12px;color:var(--foam)}
+  .tsbtn{border:1px solid var(--border);background:var(--card2);color:var(--foam-dim);border-radius:4px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:var(--font-serif);letter-spacing:.08em;white-space:nowrap}
+  .tsbtn:hover{color:var(--foam)} .tsbtn.play{border-color:var(--sun);color:var(--sun)}
+  .activebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+  .activebar .lead{font-family:var(--font-serif);font-size:10px;letter-spacing:.2em;color:var(--sky);margin-right:2px}
+  .activebar .none{font-size:11px;color:var(--sky-dim)}
+  .afchip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--border);border-radius:13px;padding:3px 5px 3px 11px;font-size:11px;color:var(--foam)}
+  .afchip b{color:var(--sky);font-weight:400;font-size:9.5px;letter-spacing:.05em}
+  .afchip .x{cursor:pointer;width:16px;height:16px;border-radius:50%;background:var(--border);color:var(--foam);display:inline-flex;align-items:center;justify-content:center;font-size:11px;line-height:1}
+  .afchip .x:hover{background:var(--coral);color:#0a1428}
+  .afclear{font-size:10.5px;color:var(--sky-dim);cursor:pointer;border:0;background:transparent;text-decoration:underline;margin-left:4px}
+  .slider{position:relative;flex:1;min-width:240px;height:30px}
+  .slider .track{position:absolute;top:13px;left:0;right:0;height:4px;background:var(--card2);border-radius:2px}
+  .slider .fill{position:absolute;top:13px;height:4px;background:var(--sun);border-radius:2px}
+  .slider input[type=range]{position:absolute;top:3px;left:0;width:100%;height:24px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none}
+  .slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:16px;height:16px;border-radius:50%;background:var(--sun);border:2px solid var(--bg-deep);cursor:pointer}
+  .slider input[type=range]::-moz-range-thumb{pointer-events:auto;width:16px;height:16px;border-radius:50%;background:var(--sun);border:2px solid var(--bg-deep);cursor:pointer}
+  .charts{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:780px){.charts{grid-template-columns:1fr 1fr}}
+  @media(min-width:1180px){.charts{grid-template-columns:repeat(3,1fr)} .charts .span2{grid-column:span 2}}
+  .plot{width:100%;height:222px}
+  .miniSw{display:flex;gap:4px;border:1px solid var(--border);background:rgba(15,29,51,.92);border-radius:4px;padding:4px;backdrop-filter:blur(4px)}
+  .miniSw button{border:0;background:transparent;color:var(--foam-dim);border-radius:3px;padding:4px 9px;font-family:var(--font-serif);font-size:10px;letter-spacing:.16em;cursor:pointer}
+  .miniSw button.on{background:var(--sun);color:var(--bg-deep)}
+  .axisSw{position:absolute;top:10px;right:10px;z-index:2}
+  .maplegend{position:absolute;bottom:14px;left:14px;max-width:260px;border:1px solid var(--border);background:rgba(15,29,51,.92);border-radius:4px;padding:10px;backdrop-filter:blur(4px);z-index:2;pointer-events:none}
+  .maplegend .ttl{font-family:var(--font-serif);font-size:10px;letter-spacing:.25em;color:var(--sky)}
+  .maplegend .row{font-size:11px;color:var(--foam);margin-top:5px}.maplegend .row span{color:var(--sky)}
+  .gradbar{margin-top:8px;height:8px;border-radius:3px;background:linear-gradient(90deg,#e76f51 0%,#f4a261 50%,#edcc78 100%)}
+  .gradlabel{display:flex;justify-content:space-between;margin-top:3px;font-family:var(--font-mono);font-size:10px;color:var(--foam-dim)}
+  .styleSw{position:absolute;bottom:14px;right:14px;z-index:2}
+  .rank{font-size:11px}.rank .r{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .rank .sw{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none}
+  .rank .nm{flex:1;color:var(--foam);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rank .ct{font-family:var(--font-mono);color:var(--foam-dim)}.rank .pc{width:34px;text-align:right;color:var(--sky-dim)}
+  .gate{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.82);border-radius:4px;text-align:center;padding:14px}
+  .gate b{display:block;font-family:var(--font-serif);font-size:13px;color:var(--foam-dim)}.gate span{font-size:11px;color:var(--sky-dim)}
+  footer{margin-top:14px;border-top:1px solid var(--border);padding-top:14px;text-align:center;font-family:var(--font-serif);font-size:11px;letter-spacing:.3em;color:var(--sky-dim)}
+  @media(max-width:920px){.maprow{grid-template-columns:1fr}#map{height:360px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">深掘り分析</div>
+    <div class="title">釣果ダッシュボード<span class="sub">サンプル（全魚種対応 / モックデータ）</span></div>
+  </header>
+  <div id="activeBar" class="activebar"></div>
+  <div id="kpis"></div>
+
+  <div class="maprow">
+    <div class="panel">
+      <div class="eyebrow">① Map</div><h3>釣果マップ（立体棒）</h3>
+      <p class="desc">高さ＝釣果数／色＝平均体長。棒をタップで全パネルを絞り込み（ドラッグで回転）</p>
+      <div id="map">
+        <div class="maplegend">
+          <div class="ttl">凡例</div>
+          <div class="row">高さ <span>= 釣果数</span></div>
+          <div class="row">色 <span>= 平均体長</span></div>
+          <div class="gradbar"></div>
+          <div class="gradlabel"><span id="lenLo">–</span><span id="lenHi">–</span></div>
+        </div>
+        <div class="miniSw styleSw" id="styleSw"><button data-style="dark" class="on">Dark</button><button data-style="voyager">Voyager</button></div>
+      </div>
+    </div>
+    <aside class="panel filters">
+      <div class="eyebrow">絞り込み</div><h3>フィルタ</h3>
+      <div class="fgroup"><div class="flabel">モード</div>
+        <div class="seg" id="modeSeg">
+          <button data-mode="全" class="on">全</button><button data-mode="海">海</button>
+          <button data-mode="汽水">汽水</button><button data-mode="淡水">淡水</button>
+        </div></div>
+      <div class="fgroup"><div class="flabel">時間帯</div><div class="chipgroup" id="timeChips"></div>
+        <div class="cap">朝マズメ=日の出前後／夕マズメ=日没前後／夜=日没後〜日の出前</div></div>
+      <div class="fgroup"><div class="flabel">潮位フェーズ</div><div class="chipgroup" id="phaseChips"></div></div>
+      <div class="fgroup"><div class="flabel">潮汐（種類）</div><div class="chipgroup" id="tideChips"></div></div>
+      <div class="fgroup"><div class="flabel">天気</div><div class="chipgroup" id="weatherChips"></div></div>
+      <div class="fgroup"><div class="flabel">ベイト</div><div class="chipgroup" id="baitChips"></div></div>
+      <div class="fgroup"><div class="flabel">濁り</div><div class="chipgroup" id="turbidChips"></div></div>
+      <button class="reset" id="reset">フィルタを全解除</button>
+    </aside>
+  </div>
+
+  <!-- 期間スライダー（Map＋絞り込みの下／参考サイト準拠） -->
+  <div class="panel tspanel">
+    <span class="lbl">期間</span>
+    <button class="tsbtn play" id="tsPlay">▶ 再生</button>
+    <div class="miniSw" id="playModeSw"><button data-pm="accum" class="on">積み上げ</button><button data-pm="window">ウィンドウ</button></div>
+    <span class="tsval"><span id="tsFrom">–</span> 〜 <span id="tsTo">–</span></span>
+    <div class="slider" id="slider">
+      <div class="track"></div><div class="fill" id="tsFill"></div>
+      <input type="range" id="tsA"><input type="range" id="tsB">
+    </div>
+    <button class="tsbtn" id="tsReset">期間リセット</button>
+  </div>
+
+  <div class="charts">
+    <div class="panel span2">
+      <div class="eyebrow">② Trend</div><h3>釣果推移</h3>
+      <p class="desc">月別釣果（左軸）＋水温（右軸）＋水位（相対・線のみ）＋放水イベント縦線</p>
+      <div id="trend" class="plot" style="height:240px"></div>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">③ Species</div><h3>魚種内訳</h3><p class="desc">スライス／行をタップで魚種を絞り込み</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="donut" style="flex:1;height:230px"></div><div id="donutRank" class="rank" style="width:140px"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">④ Size</div><h3>サイズ分布</h3><p class="desc" id="histDesc">バーをタップでそのサイズ帯に絞り込み</p>
+      <div id="hist" class="plot"></div>
+    </div>
+    <div class="panel" id="envPanel">
+      <div class="miniSw axisSw" id="envAxisSw"><button data-ax="phase" class="on">潮位</button><button data-ax="temp">水温帯</button></div>
+      <div class="eyebrow">⑤ Environment</div><h3 id="envTitle">環境×ヒット率</h3><p class="desc" id="envSub"></p>
+      <div id="env" class="plot"></div>
+    </div>
+    <div class="panel" id="lurePanel">
+      <div class="eyebrow">⑥ Method</div><h3>ルアー／餌 効果</h3><p class="desc" id="lureDesc">バーをタップでそのルアー/餌に絞り込み</p>
+      <div id="lure" class="plot"></div>
+    </div>
+  </div>
+
+  <footer>Tokyo Bay · 釣果ジャーナリズム · 深掘りサンプル</footer>
+</div>
+
+<script>
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=mulberry32(20260627);const pick=a=>a[Math.floor(rnd()*a.length)];
+const gauss=(m,s)=>{let u=rnd(),v=rnd();return m+s*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const SPOTS=[
+  {name:'多摩川 河口', mode:'汽水', lat:35.535, lng:139.770},{name:'多摩川 中流', mode:'淡水', lat:35.610, lng:139.630},
+  {name:'運河エリア',  mode:'汽水', lat:35.580, lng:139.785},{name:'湾奥 堤防',   mode:'海',   lat:35.640, lng:139.830},
+  {name:'港湾 外向き', mode:'海',   lat:35.470, lng:139.715},{name:'上流 瀬',     mode:'淡水', lat:35.720, lng:139.430},
+];
+const SPOT_W=[0.30,0.18,0.16,0.16,0.10,0.10];
+const SPECIES={'海':['シーバス','クロダイ','マゴチ','カサゴ','タチウオ'],'汽水':['シーバス','クロダイ','マゴチ','セイゴ'],'淡水':['スモールマウスバス','ナマズ','ニゴイ','ラージマウスバス']};
+const SIZE_MEAN={'シーバス':52,'セイゴ':32,'クロダイ':38,'マゴチ':45,'カサゴ':24,'タチウオ':70,'スモールマウスバス':33,'ラージマウスバス':38,'ナマズ':55,'ニゴイ':40};
+const TIMES=['朝マズメ','日中','夕マズメ','夜'];
+const TIME_DEF={'朝マズメ':'日の出前後の薄明帯','日中':'日中（マズメ以外の明るい時間）','夕マズメ':'日没前後の薄明帯','夜':'日没後〜日の出前'};
+const TURBIDS=['クリア','ささ濁り','濁り'];const WEATHERS=['晴れ','曇り','雨'];const TIDES=['大潮','中潮','小潮','長潮'];
+const PHASES=['上げ3分','上げ7分','満潮','下げ3分','下げ7分','干潮'];const TEMP_BANDS=['<10','10–14','14–18','18–22','22–26','26<'];
+const tband=t=>t<10?0:t<14?1:t<18?2:t<22?3:t<26?4:5;
+function weightedSpot(){let r=rnd(),a=0;for(let i=0;i<SPOTS.length;i++){a+=SPOT_W[i];if(r<=a)return SPOTS[i]}return SPOTS[0]}
+function seasonOf(m){if(m>=2&&m<=4)return'春';if(m>=5&&m<=7)return'夏';if(m>=8&&m<=10)return'秋';return'冬'}
+function baitForMonth(m){if(m<=2)return pick(['バチ','バチ','ハク','なし']);if(m<=4)return pick(['稚アユ','ハク','イナッコ','なし']);if(m<=7)return pick(['イワシ','イナッコ','ハク','なし']);if(m<=10)return pick(['コノシロ','イワシ','稚アユ','なし']);return pick(['コノシロ','なし','ハク'])}
+const START=new Date(2025,6,1),N=92,SESSIONS=[];
+for(let i=0;i<N;i++){
+  const date=new Date(START.getTime()+(Math.floor(i/N*360)+Math.floor(rnd()*4))*86400000);
+  const month=date.getMonth(),season=seasonOf(month),spot=weightedSpot(),mode=spot.mode;
+  const baseTemp=16+9*Math.sin((month-3)/12*2*Math.PI);const waterTemp=Math.max(5,Math.min(29,gauss(baseTemp,1.6)));
+  const rain=rnd()<0.22,waterLevel=Math.max(0.2,gauss(rain?1.7:1.0,rain?0.4:0.2));
+  const turbidity=waterLevel>1.5?pick(['濁り','濁り','ささ濁り']):waterLevel>1.15?pick(['ささ濁り','クリア']):pick(['クリア','クリア','ささ濁り']);
+  const weather=rain?'雨':pick(['晴れ','晴れ','曇り']);const tide=pick(['大潮','中潮','中潮','小潮','長潮']);
+  const timeOfDay=pick(['夕マズメ','夜','夜','朝マズメ','日中','夕マズメ']);const bait=baitForMonth(month),phase=pick(PHASES);
+  const seasonF=season==='春'?1.25:season==='秋'?1.4:season==='夏'?0.95:0.55;
+  const timeF=timeOfDay==='夕マズメ'?1.5:timeOfDay==='夜'?1.3:timeOfDay==='朝マズメ'?1.1:0.6;
+  const turbidF=mode!=='淡水'?(turbidity==='濁り'?1.4:turbidity==='ささ濁り'?1.15:0.9):1.0;
+  const tideF=mode!=='淡水'?((phase==='上げ7分'||phase==='下げ7分')?1.3:(phase==='満潮'||phase==='干潮')?0.7:1.0):1.0;
+  const tempF=(waterTemp>=12&&waterTemp<=22)?1.2:(waterTemp<8||waterTemp>26)?0.5:0.9;
+  let count=Math.max(0,Math.round(gauss(1.5*seasonF*timeF*turbidF*tideF*tempF,0.9)));if(rnd()<0.10)count=0;
+  const catches=[];
+  for(let c=0;c<count;c++){const sp=(rnd()<0.55&&SPECIES[mode].includes('シーバス'))?'シーバス':pick(SPECIES[mode]);
+    const size=Math.max(12,Math.round(gauss(SIZE_MEAN[sp]||40,(SIZE_MEAN[sp]||40)*0.18)));let lure;
+    if(mode==='淡水')lure=pick(['ワーム','スピナーベイト','ミノー','バイブレーション']);
+    else if(bait==='バチ')lure=pick(['バチ系','シンキングペンシル']);else if(timeOfDay==='日中')lure=pick(['バイブレーション','メタルジグ','ミノー']);
+    else lure=pick(['ミノー','シンキングペンシル','バイブレーション','ワーム','青イソメ(餌)']);
+    catches.push({species:sp,size,lure});}
+  SESSIONS.push({date,month,mode,spot,waterTemp,waterLevel,turbidity,weather,tide,timeOfDay,bait,phase,catches});
+}
+const RELEASE_MONTHS=[...new Set(SESSIONS.filter(s=>s.waterLevel>1.7).map(s=>s.month))].slice(0,3);
+const DATES=SESSIONS.map(s=>s.date.getTime());const DMIN=new Date(Math.min(...DATES)),DMAX=new Date(Math.max(...DATES));
+const TOTAL=Math.round((DMAX-DMIN)/86400000);const dayAt=i=>new Date(DMIN.getTime()+i*86400000);
+const iso=d=>d.toISOString().slice(0,10);
+
+const F={mode:'全',spot:null,species:null,lure:null,size:null,env:null,from:null,to:null,
+  times:new Set(),baits:new Set(),turbids:new Set(),weathers:new Set(),tides:new Set(),phases:new Set()};
+let envAxis=null;
+function pass(s,ignore){
+  if(F.from&&s.date<F.from)return false;
+  if(F.to&&s.date>F.to)return false;
+  if(F.mode!=='全'&&s.mode!==F.mode)return false;
+  if(F.spot&&s.spot.name!==F.spot)return false;
+  if(F.times.size&&!F.times.has(s.timeOfDay))return false;
+  if(F.phases.size&&!F.phases.has(s.phase))return false;
+  if(F.tides.size&&!F.tides.has(s.tide))return false;
+  if(F.weathers.size&&!F.weathers.has(s.weather))return false;
+  if(F.baits.size&&!F.baits.has(s.bait))return false;
+  if(F.turbids.size&&!F.turbids.has(s.turbidity))return false;
+  if(ignore!=='env'&&F.env){const idx=F.env.axis==='temp'?tband(s.waterTemp):PHASES.indexOf(s.phase);if(idx!==F.env.idx)return false}
+  return true;
+}
+function catchFilter(s,ignore){return s.catches.filter(c=>
+  (ignore==='species'||!F.species||c.species===F.species)&&
+  (ignore==='lure'||!F.lure||c.lure===F.lure)&&
+  (ignore==='size'||!F.size||(c.size>=F.size[0]&&c.size<F.size[1])))}
+const catchesOf=s=>catchFilter(s,null);
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const PLOT_CFG={responsive:true,displayModeBar:false};
+const CSG=[[0,[231,111,81]],[0.5,[244,162,97]],[1,[237,204,120]]];
+function lerpRGB(t){t=Math.max(0,Math.min(1,t));for(let i=1;i<CSG.length;i++){const[a,A]=CSG[i-1],[b,B]=CSG[i];
+  if(t<=b){const k=b===a?0:(t-a)/(b-a);return[A[0]+(B[0]-A[0])*k,A[1]+(B[1]-A[1])*k,A[2]+(B[2]-A[2])*k]}}return CSG[2][1]}
+const lerpHex=t=>{const c=lerpRGB(t).map(n=>Math.round(n).toString(16).padStart(2,'0'));return'#'+c.join('')};
+const speciesPalette=['#e76f51','#f4a261','#edcc78','#9cc39a','#a8c6d6','#c08fb4','#ddd5c2','#d2b06f','#8aa9cf','#cf8a63'];
+const GRID='rgba(168,198,214,0.12)';const FOAM=()=>css('--foam-dim'),LINE=()=>css('--border');
+function baseAxis(title){return {title:{text:title,font:{size:10,color:css('--sky')}},gridcolor:GRID,zerolinecolor:GRID,linecolor:LINE(),tickcolor:LINE(),tickfont:{size:9,color:FOAM()},automargin:true}}
+function baseLayout(extra){return Object.assign({paper_bgcolor:'transparent',plot_bgcolor:'transparent',font:{family:'"Noto Sans JP",sans-serif',color:FOAM(),size:10},margin:{l:42,r:16,t:8,b:34}},extra)}
+
+let deckgl=null,BASEMAP={dark:'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',voyager:'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'};
+let curStyle='dark',elevAnim=0,lenRange=[30,60];
+function spotAgg(sessions){const by={};SPOTS.forEach(s=>by[s.name]={count:0,sum:0,max:0});
+  sessions.forEach(s=>catchesOf(s).forEach(c=>{const o=by[s.spot.name];o.count++;o.sum+=c.size;o.max=Math.max(o.max,c.size)}));
+  return SPOTS.map(s=>({...s,count:by[s.name].count,avgLen:by[s.name].count?by[s.name].sum/by[s.name].count:0,maxLen:by[s.name].max}))}
+function tileLayer(){return new deck.TileLayer({id:'base',data:BASEMAP[curStyle],minZoom:0,maxZoom:19,tileSize:256,
+  renderSubLayers:p=>{const t=p.tile;let w,s,e,n;if(t.bbox){w=t.bbox.west;s=t.bbox.south;e=t.bbox.east;n=t.bbox.north;}
+    else{const b=t.boundingBox;w=b[0][0];s=b[0][1];e=b[1][0];n=b[1][1];}
+    return new deck.BitmapLayer(p,{data:null,image:p.data,bounds:[w,s,e,n]});}})}
+function columnLayer(agg){
+  const ls=agg.filter(a=>a.avgLen>0).map(a=>a.avgLen);lenRange=ls.length?[Math.min(...ls),Math.max(...ls)]:[30,60];
+  document.getElementById('lenLo').textContent=lenRange[0].toFixed(0)+'cm';document.getElementById('lenHi').textContent=lenRange[1].toFixed(0)+'cm';
+  return new deck.ColumnLayer({id:'cols',data:agg,diskResolution:24,radius:600,extruded:true,pickable:true,
+    elevationScale:200*elevAnim,getPosition:d=>[d.lng,d.lat],getElevation:d=>d.count,
+    getFillColor:d=>{const t=lenRange[1]===lenRange[0]?0.5:(d.avgLen-lenRange[0])/(lenRange[1]-lenRange[0]);
+      const dim=(F.spot&&F.spot!==d.name);const c=lerpRGB(d.avgLen?t:0.5);return[c[0],c[1],c[2],dim?70:230]},
+    getLineColor:[255,224,188,110],material:{ambient:0.6,diffuse:0.7,shininess:32,specularColor:[255,224,188]},
+    onClick:info=>{if(info&&info.object){F.spot=(F.spot===info.object.name)?null:info.object.name;render()}return true}})}
+function initDeck(){
+  deckgl=new deck.DeckGL({container:'map',initialViewState:{longitude:139.72,latitude:35.57,zoom:9.7,pitch:45,bearing:0},controller:true,
+    layers:[tileLayer(),columnLayer(spotAgg(SESSIONS.filter(s=>pass(s))))],
+    getTooltip:({object})=>object&&{html:
+      `<div style="font-family:var(--font-serif);color:#f1efe4;font-size:13px;margin-bottom:3px">${object.name}</div>`+
+      `<div style="font-family:var(--font-mono);font-size:11px;color:#dcd9c9">釣果 <b style="color:#f4a261">${object.count}</b> ・ 平均 <b style="color:#edcc78">${object.avgLen.toFixed(1)}cm</b> ・ 最大 <b style="color:#e76f51">${object.maxLen}cm</b></div>`+
+      `<div style="font-size:10px;color:#a8c6d6;margin-top:2px">クリックで絞り込み</div>`,
+      style:{background:'#142544',border:'1px solid #f4a261',borderRadius:'4px',padding:'7px 9px'}}});
+  const t0=performance.now();
+  (function grow(now){elevAnim=Math.min(1,(now-t0)/900);deckgl.setProps({layers:[tileLayer(),columnLayer(spotAgg(SESSIONS.filter(s=>pass(s))))]});if(elevAnim<1)requestAnimationFrame(grow);})(t0);
+}
+function updateDeck(sessions){if(deckgl)deckgl.setProps({layers:[tileLayer(),columnLayer(spotAgg(sessions))]})}
+
+const ORDER=[6,7,8,9,10,11,0,1,2,3,4,5];const MLABELS=['7','8','9','10','11','12','1','2','3','4','5','6'];
+function monthAgg(sessions){return ORDER.map(m=>{const ss=sessions.filter(s=>s.month===m);
+  return {catches:ss.reduce((a,s)=>a+catchesOf(s).length,0),t:ss.length?ss.reduce((a,s)=>a+s.waterTemp,0)/ss.length:null,lv:ss.length?ss.reduce((a,s)=>a+s.waterLevel,0)/ss.length:null}})}
+function drawTrend(sessions){
+  const a=monthAgg(sessions);
+  const data=[
+    {type:'bar',x:MLABELS,y:a.map(d=>d.catches),name:'釣果数',marker:{color:css('--sun')},yaxis:'y'},
+    {type:'scatter',mode:'lines+markers',x:MLABELS,y:a.map(d=>d.t),name:'水温℃',line:{color:css('--gold'),dash:'dot',width:2},
+      marker:{size:7,color:css('--gold'),line:{color:'#0a1428',width:1.4}},yaxis:'y2',connectgaps:true},
+    {type:'scatter',mode:'lines+markers',x:MLABELS,y:a.map(d=>d.lv),name:'水位(相対)',line:{color:css('--sky'),dash:'dot',width:1.5},
+      marker:{size:5,color:css('--sky'),line:{color:'#0a1428',width:1}},yaxis:'y3',connectgaps:true},
+  ];
+  const shapes=[],ann=[];
+  RELEASE_MONTHS.forEach(m=>{const lab=MLABELS[ORDER.indexOf(m)];
+    shapes.push({type:'line',xref:'x',x0:lab,x1:lab,yref:'paper',y0:0,y1:1,line:{color:css('--coral'),width:1.2,dash:'dot'}});
+    ann.push({x:lab,y:1,yref:'paper',text:'放水',showarrow:false,font:{size:9,color:css('--coral')},yanchor:'bottom'})});
+  Plotly.react('trend',data,baseLayout({margin:{l:40,r:42,t:8,b:30},showlegend:true,
+    legend:{orientation:'h',y:1.16,x:0,font:{size:10,color:css('--foam')}},shapes,annotations:ann,
+    xaxis:Object.assign(baseAxis(''),{domain:[0,0.94],ticksuffix:'月'}),
+    yaxis:Object.assign(baseAxis(''),{rangemode:'tozero',ticksuffix:' 尾'}),
+    yaxis2:Object.assign(baseAxis(''),{overlaying:'y',side:'right',position:0.94,showgrid:false,range:[4,30],ticksuffix:'℃'}),
+    yaxis3:{overlaying:'y',side:'right',position:1.0,range:[0.4,2.2],showgrid:false,showticklabels:false,ticks:'',showline:false,zeroline:false}}),PLOT_CFG);
+}
+function drawDonut(sessions){
+  const counts={};sessions.forEach(s=>catchFilter(s,'species').forEach(c=>counts[c.species]=(counts[c.species]||0)+1));
+  const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const labels=entries.map(e=>e[0]),values=entries.map(e=>e[1]),total=values.reduce((a,b)=>a+b,0)||1;
+  Plotly.react('donut',[{type:'pie',hole:0.56,labels,values,sort:false,direction:'clockwise',
+    marker:{colors:labels.map((l,i)=>(F.species&&F.species!==l)?'#33486a':speciesPalette[i%speciesPalette.length]),line:{color:'#0f1d33',width:1.5}},
+    textinfo:'percent',textfont:{size:9,color:'#0a1428'}}],baseLayout({margin:{l:6,r:6,t:6,b:6},showlegend:false}),PLOT_CFG);
+  let html='';entries.slice(0,6).forEach(([sp,v],i)=>{const dim=(F.species&&F.species!==sp);
+    html+=`<div class="r" data-sp="${sp}" style="cursor:pointer;opacity:${dim?0.45:1}"><span class="sw" style="background:${speciesPalette[i%speciesPalette.length]}"></span><span class="nm">${sp}</span><span class="ct">${v}</span><span class="pc">${Math.round(v/total*100)}%</span></div>`;});
+  const rest=entries.slice(6).reduce((a,e)=>a+e[1],0);
+  if(rest)html+=`<div class="r" style="opacity:.75"><span class="sw" style="background:#3a4d6b"></span><span class="nm">その他</span><span class="ct">${rest}</span><span class="pc">${Math.round(rest/total*100)}%</span></div>`;
+  const host=document.getElementById('donutRank');host.innerHTML=html||'<span style="color:var(--sky-dim)">データなし</span>';
+  host.querySelectorAll('.r[data-sp]').forEach(r=>r.onclick=()=>{const sp=r.getAttribute('data-sp');F.species=(F.species===sp)?null:sp;render()});
+}
+function drawHist(sessions){
+  const bins=[];for(let lo=10;lo<90;lo+=5)bins.push({lo,c:0});
+  sessions.forEach(s=>catchFilter(s,'size').forEach(c=>{const i=Math.floor((Math.min(89,Math.max(10,c.size))-10)/5);if(bins[i])bins[i].c++}));
+  const sel=F.size?F.size[0]:null;
+  document.getElementById('histDesc').textContent=F.size?`${F.size[0]}–${F.size[1]}cm で絞り込み中（もう一度タップで解除）`:'バーをタップでそのサイズ帯に絞り込み';
+  Plotly.react('hist',[{type:'bar',x:bins.map(b=>b.lo),y:bins.map(b=>b.c),width:4.4,
+    marker:{color:bins.map(b=>F.size?(b.lo===sel?css('--sun'):'#33486a'):css('--sun')),line:{color:'#0f1d33',width:1}},
+    hovertemplate:'%{x}–%{x}cm台<br>%{y} 尾<extra></extra>'}],
+    baseLayout({margin:{l:36,r:10,t:8,b:32},bargap:0.05,
+      xaxis:Object.assign(baseAxis('サイズ(cm)'),{dtick:10,range:[8,90]}),yaxis:baseAxis('尾数')}),PLOT_CFG);
+}
+function drawEnv(){
+  const sessions=SESSIONS.filter(s=>pass(s,'env'));
+  const useTemp = envAxis ? envAxis==='temp' : (F.mode==='淡水');const axisKey=useTemp?'temp':'phase';
+  document.querySelectorAll('#envAxisSw button').forEach(b=>b.classList.toggle('on',b.dataset.ax===axisKey));
+  document.getElementById('envTitle').textContent='環境×ヒット率'+(useTemp?'（水温帯）':'（潮位フェーズ）');
+  document.getElementById('envSub').textContent=(F.env&&F.env.axis===axisKey)?`${(useTemp?TEMP_BANDS:PHASES)[F.env.idx]} で絞り込み中（もう一度タップで解除）`:(useTemp?'水温帯ごとの 釣果/釣行':'潮位フェーズごとの 釣果/釣行');
+  const cats=useTemp?TEMP_BANDS:PHASES;
+  const agg=cats.map(()=>({c:0,n:0}));
+  sessions.forEach(s=>{const k=useTemp?tband(s.waterTemp):PHASES.indexOf(s.phase);if(k<0)return;agg[k].n++;agg[k].c+=catchesOf(s).length});
+  const rate=agg.map(a=>a.n?a.c/a.n:0);const mx=Math.max(0.01,...rate);
+  const selIdx=(F.env&&F.env.axis===axisKey)?F.env.idx:-1;
+  Plotly.react('env',[{type:'bar',x:cats,y:rate,
+    marker:{color:rate.map((v,i)=> selIdx>=0?(i===selIdx?css('--sun'):'#33486a') : lerpHex(v/mx))},
+    text:agg.map(a=>'n'+a.n),textposition:'outside',textfont:{size:8,color:css('--foam-dim')},
+    customdata:agg.map(a=>a.n),hovertemplate:'%{x}<br>%{y:.2f} 尾/釣行 (n=%{customdata})<extra></extra>'}],
+    baseLayout({margin:{l:36,r:10,t:8,b:40},xaxis:Object.assign(baseAxis(useTemp?'水温帯(℃)':'潮位フェーズ'),{tickangle:useTemp?0:-30}),yaxis:Object.assign(baseAxis('尾/釣行'),{rangemode:'tozero'})}),PLOT_CFG);
+  gate('envPanel',sessions.length,6);
+}
+function drawLure(sessions){
+  const counts={};sessions.forEach(s=>catchFilter(s,'lure').forEach(c=>counts[c.lure]=(counts[c.lure]||0)+1));
+  const rows=Object.entries(counts).sort((a,b)=>a[1]-b[1]).slice(-8);
+  document.getElementById('lureDesc').textContent=F.lure?`「${F.lure}」で絞り込み中（もう一度タップで解除）`:'バーをタップでそのルアー/餌に絞り込み';
+  Plotly.react('lure',[{type:'bar',orientation:'h',x:rows.map(r=>r[1]),y:rows.map(r=>r[0]),
+    marker:{color:rows.map((r,i)=>F.lure?(r[0]===F.lure?css('--sun'):'#33486a'):lerpHex(rows.length>1?i/(rows.length-1):0.5))},
+    text:rows.map(r=>r[1]),textposition:'outside',textfont:{size:9,color:css('--foam-dim')}}],
+    baseLayout({margin:{l:96,r:24,t:8,b:30},xaxis:baseAxis('釣果数(尾)'),yaxis:Object.assign(baseAxis(''),{tickfont:{size:10,color:css('--foam')}})}),PLOT_CFG);
+}
+function renderKpis(sessions){
+  let nC=0,sz=0,boz=0;sessions.forEach(s=>{const cs=catchesOf(s);nC+=cs.length;cs.forEach(c=>sz+=c.size);if(!cs.length)boz++});
+  const nS=sessions.length,rate=nS?nC/nS:0,avg=nC?sz/nC:0,bozR=nS?Math.round(boz/nS*100):0;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><b class="sun">${nC}</b><span>総釣果</span></div><div class="kpi"><b>${nS}</b><span>釣行数</span></div>
+    <div class="kpi"><b class="gold">${rate.toFixed(1)}</b><span>尾/釣行</span></div><div class="kpi"><b>${avg?avg.toFixed(0):'–'}</b><span>平均cm</span></div>
+    <div class="kpi"><b class="coral">${bozR}%</b><span>ボウズ率</span></div>`;
+}
+function gate(id,n,min){const p=document.getElementById(id);const o=p.querySelector('.gate');if(o)o.remove();
+  if(n<min){const d=document.createElement('div');d.className='gate';
+    d.innerHTML=`<div><b>データ収集中</b><span>釣行 n=${n}（必要 ${min}）。溜まると自動で表示されます。</span></div>`;p.appendChild(d)}}
+function buildChips(){const mk=(g,items,set,defs)=>{const host=document.getElementById(g);
+    items.forEach(it=>{const el=document.createElement('span');el.className='chip';el.textContent=it;if(defs&&defs[it])el.title=defs[it];
+      el.onclick=()=>{set.has(it)?set.delete(it):set.add(it);render()};host.appendChild(el)})};
+  mk('timeChips',TIMES,F.times,TIME_DEF);mk('phaseChips',PHASES,F.phases);mk('tideChips',TIDES,F.tides);
+  mk('weatherChips',WEATHERS,F.weathers);mk('baitChips',['バチ','ハク','イナッコ','イワシ','コノシロ','稚アユ'],F.baits);mk('turbidChips',TURBIDS,F.turbids)}
+function syncChips(){const sync=(g,set)=>document.getElementById(g).querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',set.has(c.textContent)));
+  sync('timeChips',F.times);sync('phaseChips',F.phases);sync('tideChips',F.tides);sync('weatherChips',F.weathers);sync('baitChips',F.baits);sync('turbidChips',F.turbids);
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===F.mode))}
+function renderActive(){
+  const host=document.getElementById('activeBar');const chips=[];
+  const add=(label,val,onx)=>chips.push({label,val,onx});
+  if(F.mode!=='全')add('モード',F.mode,()=>{F.mode='全'});
+  const a=+document.getElementById('tsA').value,b=+document.getElementById('tsB').value;
+  if(!(a===0&&b===TOTAL))add('期間',`${iso(dayAt(a))}〜${iso(dayAt(b))}`,()=>{document.getElementById('tsA').value=0;document.getElementById('tsB').value=TOTAL;updateSlider(false)});
+  if(F.spot)add('釣場',F.spot,()=>{F.spot=null});
+  if(F.species)add('魚種',F.species,()=>{F.species=null});
+  if(F.lure)add('ルアー',F.lure,()=>{F.lure=null});
+  if(F.size)add('サイズ',`${F.size[0]}–${F.size[1]}cm`,()=>{F.size=null});
+  if(F.env)add('環境',(F.env.axis==='temp'?TEMP_BANDS:PHASES)[F.env.idx],()=>{F.env=null});
+  const setChip=(name,set)=>set.forEach(v=>add(name,v,()=>set.delete(v)));
+  setChip('時間帯',F.times);setChip('潮位',F.phases);setChip('潮汐',F.tides);setChip('天気',F.weathers);setChip('ベイト',F.baits);setChip('濁り',F.turbids);
+  if(!chips.length){host.innerHTML='<span class="lead">アクティブフィルタ</span><span class="none">なし（全データ表示中）</span>';return}
+  host.innerHTML='<span class="lead">アクティブフィルタ</span>';
+  chips.forEach((c,i)=>{const el=document.createElement('span');el.className='afchip';
+    el.innerHTML=`<b>${c.label}</b>${c.val} <span class="x" data-i="${i}">×</span>`;host.appendChild(el)});
+  const clr=document.createElement('button');clr.className='afclear';clr.textContent='すべて解除';
+  clr.onclick=()=>document.getElementById('reset').click();host.appendChild(clr);
+  host.querySelectorAll('.x').forEach(x=>x.onclick=()=>{chips[+x.dataset.i].onx();render()});
+}
+function render(){const sessions=SESSIONS.filter(s=>pass(s));
+  renderKpis(sessions);syncChips();renderActive();updateDeck(sessions);
+  drawTrend(sessions);drawDonut(sessions);drawHist(sessions);drawEnv();drawLure(sessions);
+  gate('lurePanel',sessions.length,6)}
+
+/* スライダー */
+function updateSlider(r){let a=+document.getElementById('tsA').value,b=+document.getElementById('tsB').value;
+  if(a>b){[a,b]=[b,a]}F.from=dayAt(a);F.to=new Date(dayAt(b).getTime()+86399000);
+  document.getElementById('tsFrom').textContent=iso(dayAt(a));document.getElementById('tsTo').textContent=iso(dayAt(b));
+  document.getElementById('tsFill').style.left=(a/TOTAL*100)+'%';document.getElementById('tsFill').style.width=((b-a)/TOTAL*100)+'%';
+  if(r==='deb')deb();else if(r==='now')render()}
+let _t;function deb(){clearTimeout(_t);_t=setTimeout(render,110)}
+let playing=false,playTimer=null,playMode='accum';
+function stopPlay(){playing=false;if(playTimer)clearInterval(playTimer);playTimer=null;const b=document.getElementById('tsPlay');if(b){b.textContent='▶ 再生';b.classList.add('play')}}
+function startPlay(){const tsA=document.getElementById('tsA'),tsB=document.getElementById('tsB');
+  const step=Math.max(1,Math.round(TOTAL/100));
+  playing=true;const pb=document.getElementById('tsPlay');pb.textContent='⏸ 停止';pb.classList.remove('play');
+  if(playMode==='accum'){
+    if(+tsB.value>=TOTAL)tsB.value=Math.max(+tsA.value+1,Math.round(TOTAL*0.12));
+    playTimer=setInterval(()=>{let b=+tsB.value+step;if(b>=TOTAL){b=TOTAL;tsB.value=b;updateSlider('now');stopPlay();return}tsB.value=b;updateSlider('now')},130);
+  }else{
+    let width=+tsB.value-+tsA.value;if(width<=1||width>=TOTAL)width=Math.round(TOTAL*0.2);
+    let a=+tsA.value;if(a+width>=TOTAL)a=0;tsA.value=a;tsB.value=a+width;updateSlider('now');
+    playTimer=setInterval(()=>{let na=+tsA.value+step;if(na+width>=TOTAL){na=TOTAL-width;tsA.value=na;tsB.value=na+width;updateSlider('now');stopPlay();return}tsA.value=na;tsB.value=na+width;updateSlider('now')},130);
+  }}
+
+document.getElementById('modeSeg').onclick=e=>{const b=e.target.closest('button');if(b){F.mode=b.dataset.mode;render()}};
+document.getElementById('reset').onclick=()=>{stopPlay();F.mode='全';F.spot=null;F.species=null;F.lure=null;F.size=null;F.env=null;
+  F.times.clear();F.phases.clear();F.tides.clear();F.weathers.clear();F.baits.clear();F.turbids.clear();envAxis=null;
+  document.getElementById('tsA').value=0;document.getElementById('tsB').value=TOTAL;updateSlider(false);render()};
+document.getElementById('styleSw').onclick=e=>{const b=e.target.closest('button');if(!b)return;curStyle=b.dataset.style;document.querySelectorAll('#styleSw button').forEach(x=>x.classList.toggle('on',x===b));updateDeck(SESSIONS.filter(s=>pass(s)))};
+document.getElementById('envAxisSw').onclick=e=>{const b=e.target.closest('button');if(!b)return;envAxis=b.dataset.ax;render()};
+document.getElementById('playModeSw').onclick=e=>{const b=e.target.closest('button');if(!b)return;stopPlay();playMode=b.dataset.pm;document.querySelectorAll('#playModeSw button').forEach(x=>x.classList.toggle('on',x===b))};
+document.getElementById('tsA').oninput=()=>{stopPlay();updateSlider('deb')};document.getElementById('tsB').oninput=()=>{stopPlay();updateSlider('deb')};
+document.getElementById('tsPlay').onclick=()=>playing?stopPlay():startPlay();
+document.getElementById('tsReset').onclick=()=>{stopPlay();document.getElementById('tsA').value=0;document.getElementById('tsB').value=TOTAL;updateSlider(false);render()};
+window.addEventListener('load',()=>{
+  const tsA=document.getElementById('tsA'),tsB=document.getElementById('tsB');
+  tsA.min=tsB.min=0;tsA.max=tsB.max=TOTAL;tsA.value=0;tsB.value=TOTAL;updateSlider(false);
+  try{initDeck()}catch(e){document.getElementById('map').innerHTML='<div style="padding:20px;color:#dcd9c9;font-size:12px">地図ライブラリ(deck.gl)の読み込みに失敗しました。ダウンロードしてブラウザで開いてください。</div>'}
+  buildChips();render();
+  document.getElementById('donut').on('plotly_click',ev=>{const sp=ev.points[0].label;F.species=(F.species===sp)?null:sp;render()});
+  document.getElementById('lure').on('plotly_click',ev=>{const lu=ev.points[0].y;F.lure=(F.lure===lu)?null:lu;render()});
+  document.getElementById('hist').on('plotly_click',ev=>{const lo=ev.points[0].x;F.size=(F.size&&F.size[0]===lo)?null:[lo,lo+5];render()});
+  document.getElementById('env').on('plotly_click',ev=>{const useTemp=envAxis?envAxis==='temp':(F.mode==='淡水');const axisKey=useTemp?'temp':'phase';
+    const cats=useTemp?TEMP_BANDS:PHASES;const idx=cats.indexOf(ev.points[0].x);
+    F.env=(F.env&&F.env.axis===axisKey&&F.env.idx===idx)?null:{axis:axisKey,idx};render()});
+});
+</script>
+</body>
+</html>
