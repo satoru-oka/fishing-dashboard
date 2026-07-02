@@ -32,6 +32,10 @@ function dataFolderPlugin(): Plugin {
           res.end('Bad Request');
           return;
         }
+        // Strip leading slashes so an absolute-looking segment (e.g. from a
+        // `/data//x.csv` or `/data/%2Fx.csv` request) stays relative to dataDir
+        // instead of overriding it in path.resolve and 404-ing a real file.
+        rel = rel.replace(/^\/+/, '');
         const filePath = path.resolve(dataDir, rel);
         // Only CSV files are served from data/. Anything else → 404 (no path hints).
         if (!isCsv(filePath)) {
