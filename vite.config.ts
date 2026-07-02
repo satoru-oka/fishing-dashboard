@@ -12,6 +12,10 @@ function isInsideDir(parentDir: string, targetPath: string): boolean {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
+// Only `.csv` files are served/published. Using endsWith (not path.extname) so
+// a file literally named `.csv` is still matched.
+const isCsv = (filePath: string): boolean => filePath.toLowerCase().endsWith('.csv');
+
 // Serve /data/* from the repo-root `data/` folder during dev, and copy on build.
 function dataFolderPlugin(): Plugin {
   const dataDir = path.resolve(__dirname, 'data');
@@ -30,7 +34,7 @@ function dataFolderPlugin(): Plugin {
         }
         const filePath = path.resolve(dataDir, rel);
         // Only CSV files are served from data/. Anything else → 404 (no path hints).
-        if (path.extname(filePath).toLowerCase() !== '.csv') {
+        if (!isCsv(filePath)) {
           res.statusCode = 404;
           res.end('Not Found');
           return;
@@ -42,30 +46,62 @@ function dataFolderPlugin(): Plugin {
           res.end('Not Found');
           return;
         }
-        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        // Resolve symlinks and stat the real target in one guarded step:
+        // realpathSync/statSync throw on a missing/unreadable file, so catch
+        // that and 404 instead of letting it surface as a 500.
+        let realPath: string;
+        let stat: fs.Stats;
+        try {
+          realPath = fs.realpathSync(filePath);
+          stat = fs.statSync(realPath);
+        } catch {
           res.statusCode = 404;
           res.end('Not Found');
           return;
         }
         // Re-check after resolving symlinks: a symlink inside data/ could point
-        // outside it, bypassing the lexical isInsideDir check above.
-        const realPath = fs.realpathSync(filePath);
-        if (!isInsideDir(dataDir, realPath)) {
+        // outside it (or at a non-CSV / non-file target), bypassing the lexical
+        // checks above.
+        if (!isInsideDir(dataDir, realPath) || !isCsv(realPath) || !stat.isFile()) {
           res.statusCode = 404;
           res.end('Not Found');
           return;
         }
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        fs.createReadStream(filePath).pipe(res);
+        const stream = fs.createReadStream(realPath);
+        stream.on('error', () => {
+          // A read error after headers are sent can't be turned into a status
+          // code; just tear down the response instead of crashing the dev server.
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.end('Read Error');
+          } else {
+            res.destroy();
+          }
+        });
+        stream.pipe(res);
       });
     },
     closeBundle() {
       const outDir = path.resolve(__dirname, 'dist', 'data');
       if (!fs.existsSync(dataDir)) return;
-      fs.mkdirSync(outDir, { recursive: true });
-      for (const file of fs.readdirSync(dataDir)) {
-        fs.copyFileSync(path.join(dataDir, file), path.join(outDir, file));
-      }
+      // Mirror the dev guard at build time: copy only regular .csv files,
+      // recursing into subdirectories and skipping symlinks (Dirent.isFile() is
+      // false for symlinks) so non-CSV/secret files are not published and a
+      // subdirectory doesn't crash the build with EISDIR.
+      const copyCsvTree = (srcDir: string, destDir: string): void => {
+        for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+          const src = path.join(srcDir, entry.name);
+          const dest = path.join(destDir, entry.name);
+          if (entry.isDirectory()) {
+            copyCsvTree(src, dest);
+          } else if (entry.isFile() && isCsv(entry.name)) {
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            fs.copyFileSync(src, dest);
+          }
+        }
+      };
+      copyCsvTree(dataDir, outDir);
     },
   };
 }
