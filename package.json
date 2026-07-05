@@ -15,7 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@deck.gl/core": "~9.0.33",
+    "@deck.gl/core": "~9.3.6",
     "@deck.gl/layers": "~9.0.33",
     "@deck.gl/react": "~9.0.33",
     "date-fns": "^4.4.0",
